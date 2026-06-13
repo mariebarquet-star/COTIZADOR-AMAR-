@@ -512,6 +512,15 @@
         </label>
         <button class="btn block" id="gsLoad">Cargar desde Google Sheets</button>
         <div class="smallnote" id="gsNote">Publica tu hoja en <i>Archivo → Compartir → Publicar en la web</i> como CSV. Formato esperado: dos columnas <b>Concepto | Valor</b>.</div>
+
+        <div style="border-top:1px dashed #d8c79f;margin:14px 0 12px"></div>
+        <b style="font-size:13px;color:var(--gold-deep)">Hoja compartida (cotizaciones)</b>
+        <div class="smallnote" style="margin-top:4px;margin-bottom:8px">Pega la URL del conector (Web App) que termina en <b>/exec</b>. Las cotizaciones aprobadas se guardan ahí y tú y tu socia ven lo mismo.</div>
+        <label class="field"><span>Conector · Google Sheets Web App</span>
+          <input id="gasUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec" />
+        </label>
+        <button class="btn block" id="gasSync">Conectar y sincronizar</button>
+        <div class="smallnote" id="gasNote"></div>
       </div>
 
       <div class="cfg-group">
@@ -1162,16 +1171,60 @@ function exportPdf(){
 }
 
 /* ============================================================
+   SINCRONIZACIÓN · hoja compartida (Google Apps Script Web App)
+   ============================================================ */
+let GAS_URL = "";
+function buildDetalle(s){
+  if(!s) return "";
+  const mech = (s.mechas||[]).map(m=> m.tipo==="otra"?(m.nombre||"Otra"):`M${m.tipo}`).join("+");
+  const mats = Object.entries(s.mat||{}).filter(([k,v])=>v).map(([k])=>k).join(", ");
+  return `${s.ml||0}ml · esencia ${s.esencia}ml · mechas ${mech||"-"} · ${mats||"sin extras"}`;
+}
+async function cloudPush(q){
+  if(!GAS_URL) return;
+  try{
+    await fetch(GAS_URL,{ method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"}, // texto plano: evita el preflight CORS
+      body:JSON.stringify({ id:q.id, fecha:q.fecha, cliente:q.cliente, proyecto:q.proyecto,
+        estado:q.estado||"Aprobada", ml:q.ml, costo:q.costo, pvp:q.pvp,
+        margen:+(q.margen*100).toFixed(1), ganancia:q.ganancia, detalle:buildDetalle(q.snapshot) }) });
+  }catch(e){ /* sin conexión: queda guardada localmente igual */ }
+}
+async function cloudDelete(id){
+  if(!GAS_URL) return;
+  try{ await fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",id})}); }catch(e){}
+}
+async function cloudPull(){
+  if(!GAS_URL) return false;
+  try{
+    const res=await fetch(GAS_URL+(GAS_URL.includes("?")?"&":"?")+"action=list");
+    const data=await res.json();
+    if(data && data.ok && Array.isArray(data.rows)){
+      const local={}; HIST.forEach(h=>local[h.id]=h); // conservar snapshots locales
+      HIST=data.rows.filter(r=>r.id).map(r=>({
+        id:r.id, fecha:r.fecha, cliente:r.cliente, proyecto:r.proyecto, estado:r.estado||"Aprobada",
+        ml:+r.ml||0, costo:+r.costo||0, pvp:+r.pvp||0, margen:(+r.margen||0)/100, ganancia:+r.ganancia||0,
+        snapshot: local[r.id]?local[r.id].snapshot:null
+      }));
+      await Store.set("amaru_hist", HIST);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+/* ============================================================
    HISTORIAL
    ============================================================ */
 async function saveQuote(){
   const r=recalc();
   if(r.costoTotal<=0){ toast("Calcula un costo antes de guardar"); return; }
-  HIST.unshift({
+  const q={
     id:Date.now(),
     fecha:$("#f_fecha").value || new Date().toISOString().slice(0,10),
     cliente:$("#f_cliente").value||"—",
     proyecto:$("#f_proyecto").value||"—",
+    estado:"Aprobada",
     ml:r.ml, costo:+r.costoTotal.toFixed(2), pvp:+r.pvp.toFixed(2),
     margen:r.margen, ganancia:+r.ganancia.toFixed(2),
     snapshot:{ ml:r.ml, esencia:state.esencia, mechas:state.mechas, mat:state.mat,
@@ -1180,11 +1233,13 @@ async function saveQuote(){
                mo:num($("#f_mo").value), pvp:r.pvp, margenObj:$("#f_margen_obj").value,
                cliente:$("#f_cliente").value, proyecto:$("#f_proyecto").value,
                fecha:$("#f_fecha").value, obs:$("#f_obs").value }
-  });
+  };
+  HIST.unshift(q);
   await Store.set("amaru_hist", HIST);
   renderHist();
   $("#sec-historial").classList.add("open");
-  toast("Cotización guardada");
+  cloudPush(q);
+  toast(GAS_URL ? "Cotización guardada y sincronizada" : "Cotización guardada");
 }
 function renderHist(){
   $("#histCount").textContent = HIST.length? `${HIST.length} guardada(s)` : "";
@@ -1192,16 +1247,17 @@ function renderHist(){
   $("#histList").innerHTML=HIST.map(x=>{
     let c="var(--low)"; if(x.margen*100>=70)c="var(--ok)"; else if(x.margen*100>=40)c="var(--mid)";
     return `<div class="hist-item" data-load="${x.id}">
-      <div class="meta"><b>${x.cliente} · ${x.proyecto}</b><small>${x.fecha} · ${money(x.ml,0)} ml · costo $${money(x.costo)}</small></div>
+      <div class="meta"><b>${x.cliente} · ${x.proyecto}</b><small>${x.fecha} · ${money(x.ml,0)} ml · costo $${money(x.costo)} · ${x.estado||'Aprobada'}</small></div>
       <div class="nums"><div class="m" style="color:${c}">${money(x.margen*100,0)}%</div><small>PVP $${money(x.pvp)}</small></div>
       <button class="del" data-del="${x.id}" aria-label="Eliminar">✕</button>
     </div>`;
   }).join("");
-  document.querySelectorAll("[data-load]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-del]"))return; loadQuote(+el.dataset.load); });
-  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{ e.stopPropagation(); HIST=HIST.filter(x=>x.id!=b.dataset.del); await Store.set("amaru_hist",HIST); renderHist(); });
+  document.querySelectorAll("[data-load]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-del]"))return; loadQuote(el.dataset.load); });
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{ e.stopPropagation(); const id=b.dataset.del; HIST=HIST.filter(x=>String(x.id)!=String(id)); await Store.set("amaru_hist",HIST); cloudDelete(id); renderHist(); });
 }
 function loadQuote(id){
-  const x=HIST.find(h=>h.id===id); if(!x)return; const s=x.snapshot;
+  const x=HIST.find(h=>String(h.id)===String(id)); if(!x)return; const s=x.snapshot;
+  if(!s){ toast("Esta cotización viene de la hoja compartida (sin detalle para recargar)"); return; }
   $("#f_cliente").value=s.cliente||""; $("#f_proyecto").value=s.proyecto||"";
   $("#f_fecha").value=s.fecha||""; $("#f_obs").value=s.obs||"";
   $("#f_ml").value=s.ml||""; $("#f_mo").value=s.mo||""; $("#f_pvp").value=s.pvp||"";
@@ -1220,6 +1276,7 @@ async function init(){
   const savedCfg=await Store.get("amaru_cfg"); if(savedCfg) CFG={...DEFAULT_CFG,...savedCfg};
   HIST=(await Store.get("amaru_hist"))||[];
   const gs=await Store.get("amaru_gsurl"); if(gs) $("#gsUrl").value=gs;
+  const gas=await Store.get("amaru_gas"); if(gas){ GAS_URL=gas; $("#gasUrl").value=gas; }
 
   $("#f_fecha").value=new Date().toISOString().slice(0,10);
 
@@ -1248,6 +1305,16 @@ async function init(){
   $("#xlsImport").onchange=e=>{ if(e.target.files[0]) handleExcel(e.target.files[0]); e.target.value=""; };
   $("#dlTemplate").onclick=downloadTemplate;
   $("#gsLoad").onclick=loadGoogleSheet;
+  $("#gasSync").onclick=async()=>{
+    const u=$("#gasUrl").value.trim();
+    if(!/\/exec$/.test(u)){ $("#gasNote").innerHTML="La URL debe terminar en <b>/exec</b>."; return; }
+    GAS_URL=u; await Store.set("amaru_gas", u);
+    $("#gasNote").textContent="Conectando…";
+    const ok=await cloudPull(); renderHist();
+    $("#gasNote").innerHTML = ok
+      ? "✓ Conectado. Las cotizaciones se sincronizan con la hoja compartida."
+      : "No se pudo leer la hoja. Revisa: implementación como <b>Aplicación web</b>, acceso <b>Cualquier persona</b>, y que la URL termine en <b>/exec</b>.";
+  };
   $("#exportPdf").onclick=exportPdf;
   $("#exportXlsx").onclick=exportXlsx;
   $("#printQuote").onclick=()=>window.print();
@@ -1257,6 +1324,9 @@ async function init(){
 
   // guardar
   $("#saveQuote").onclick=saveQuote;
+
+  // sincronizar al iniciar si ya hay conector configurado
+  if(GAS_URL){ const ok=await cloudPull(); if(ok) renderHist(); }
 }
 init();
 </script>
