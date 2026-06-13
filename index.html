@@ -390,74 +390,92 @@
     </div>
   </section>
 
-  <!-- 7 · Mano de obra -->
+  <!-- 7 · Mano de obra y movilización -->
   <section class="card">
-    <div class="sec-head"><span class="idx">07</span><h2>Mano de obra</h2><span class="hint">opcional</span></div>
+    <div class="sec-head"><span class="idx">07</span><h2>Mano de obra y movilización</h2><span class="hint">opcional</span></div>
     <div class="body">
-      <label class="field"><span>Costo mano de obra <span class="unit">($)</span></span>
-        <input id="f_mo" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-      </label>
+      <div class="grid2">
+        <label class="field" style="margin:0"><span>Mano de obra <span class="unit">($)</span></span>
+          <input id="f_mo" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </label>
+        <label class="field" style="margin:0"><span>Movilización <span class="unit">($)</span></span>
+          <input id="f_mov" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </label>
+      </div>
+      <div class="smallnote" style="margin-top:8px">La mano de obra entra en el costo de producción; la movilización se suma aparte, antes del margen.</div>
     </div>
   </section>
 
   <!-- 8 · Desglose -->
   <section class="card">
-    <div class="sec-head"><span class="idx">08</span><h2>Desglose de costos</h2></div>
+    <div class="sec-head"><span class="idx">08</span><h2>Desglose y velas</h2><span class="hint">arma cada vela y agrégala</span></div>
     <div class="body">
       <table class="breakdown">
         <thead><tr><th>Concepto</th><th class="r">Cantidad</th><th class="r">C. Unitario</th><th class="r">Total</th></tr></thead>
         <tbody id="breakdownBody"></tbody>
       </table>
       <div class="total-block">
-        <span class="lbl">Costo total</span>
-        <span class="amt num"><span class="c">$</span><span id="o_costo_total">0.00</span></span>
+        <span class="lbl">Costo de esta vela</span>
+        <span class="amt num"><span class="c">$</span><span id="o_costo_candle">0.00</span></span>
+      </div>
+
+      <div class="grid2" style="margin-top:14px;align-items:end">
+        <label class="field" style="margin:0"><span>Nombre de la vela</span>
+          <input id="f_vela_nombre" type="text" placeholder="Ej. Vela 200 ml lavanda" />
+        </label>
+        <label class="field" style="margin:0"><span>Cantidad</span>
+          <input id="f_vela_qty" type="number" min="1" step="1" inputmode="numeric" value="1" />
+        </label>
+      </div>
+      <button class="btn block gold no-print" id="addItem" style="margin-top:10px">＋ Agregar vela a la cotización</button>
+      <div class="smallnote" id="editingNote" style="text-align:center;margin-top:6px"></div>
+
+      <div id="cartWrap" style="margin-top:16px;border-top:1px dashed var(--hair);padding-top:14px;display:none">
+        <div style="font-size:12px;font-weight:700;color:var(--gold-deep);letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px">Velas en la cotización</div>
+        <div id="cartList"></div>
+        <div class="spec" style="grid-template-columns:1fr;margin-top:4px">
+          <div class="row"><span class="k">Costo de producción (todas las velas)</span><span class="v num" id="o_costo_prod" style="color:var(--gold-deep)">$0.00</span></div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- 9 · PVP -->
+  <!-- 9 · Precio y margen (vinculados) -->
   <section class="card">
-    <div class="sec-head"><span class="idx">09</span><h2>Precio de venta (PVP)</h2></div>
+    <div class="sec-head"><span class="idx">09</span><h2>Precio y margen</h2><span class="hint">se calculan entre sí</span></div>
     <div class="body">
-      <label class="field"><span>PVP <span class="unit">($)</span></span>
-        <input id="f_pvp" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-      </label>
+      <div class="grid2">
+        <label class="field" style="margin:0"><span>Margen deseado <span class="unit">(%)</span></span>
+          <input id="f_margen" type="number" min="0" step="1" inputmode="decimal" placeholder="80" />
+        </label>
+        <label class="field" style="margin:0"><span>PVP final <span class="unit">($)</span></span>
+          <input id="f_pvp" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </label>
+      </div>
+      <div class="smallnote" style="margin:8px 0 10px">Edita cualquiera: si pones el margen, se calcula el PVP; si pones el PVP, se calcula el margen.</div>
+      <div class="pills" id="marginPresets"></div>
     </div>
   </section>
 
-  <!-- 10 · Rentabilidad -->
+  <!-- 10 · Construcción del precio y rentabilidad -->
   <section class="card">
-    <div class="sec-head"><span class="idx">10</span><h2>Rentabilidad</h2></div>
+    <div class="sec-head"><span class="idx">10</span><h2>Rentabilidad</h2><span class="hint">cómo se arma el precio</span></div>
     <div class="body">
+      <div class="spec" id="priceBuild" style="grid-template-columns:1fr;margin-bottom:14px"></div>
       <div class="kpis">
         <div class="kpi"><div class="k">Margen / costo</div><div class="v num"><span id="o_margen">0</span><small>%</small></div></div>
-        <div class="kpi"><div class="k">Ganancia</div><div class="v num"><small>$</small><span id="o_ganancia">0.00</span></div></div>
+        <div class="kpi"><div class="k">Utilidad</div><div class="v num"><small>$</small><span id="o_ganancia">0.00</span></div></div>
         <div class="kpi"><div class="k">Multiplicador</div><div class="v num"><span id="o_mult">0.00</span><small>×</small></div></div>
       </div>
       <div class="meter"><i id="meterFill"></i></div>
-      <div class="verdict"><span class="dot" id="verdictDot"></span><span id="verdictText">Ingresa un PVP para evaluar</span></div>
+      <div class="verdict"><span class="dot" id="verdictDot"></span><span id="verdictText">Ingresa un margen o un PVP</span></div>
       <div class="smallnote" id="marginNote"></div>
     </div>
   </section>
 
-  <!-- 11 · Calculadora inversa -->
+  <!-- 11 · Resumen producción -->
   <section class="card">
-    <div class="sec-head"><span class="idx">11</span><h2>Calculadora inversa</h2><span class="hint">margen → PVP</span></div>
-    <div class="body">
-      <label class="field"><span>Margen deseado <span class="unit">(%)</span></span>
-        <input id="f_margen_obj" type="number" min="0" step="1" inputmode="decimal" placeholder="80" />
-      </label>
-      <div class="inverse-out">
-        <div class="lbl">PVP recomendado<small>para alcanzar este margen sobre costo</small></div>
-        <div class="amt num"><span class="c">$</span><span id="o_pvp_sugerido">0.00</span></div>
-      </div>
-      <button class="btn block gold no-print" id="applyPvp" style="margin-top:12px">Usar este PVP →</button>
-    </div>
-  </section>
-
-  <!-- 12 · Resumen producción -->
-  <section class="card">
-    <div class="sec-head"><span class="idx">12</span><h2>Resumen de producción</h2><span class="hint">ficha rápida</span></div>
+    <div class="sec-head"><span class="idx">11</span><h2>Resumen de producción</h2><span class="hint">ficha rápida</span></div>
     <div class="body">
       <div class="spec" id="prodSpec"></div>
     </div>
@@ -465,16 +483,16 @@
 
   <!-- 13 · Historial -->
   <section class="card collapsible" id="sec-historial">
-    <div class="sec-head"><span class="idx">13</span><h2>Historial de cotizaciones</h2><span class="hint" id="histCount"></span></div>
+    <div class="sec-head"><span class="idx">12</span><h2>Historial de cotizaciones</h2><span class="hint" id="histCount"></span></div>
     <div class="body">
       <button class="btn block primary no-print" id="saveQuote" style="margin-bottom:14px">＋ Guardar esta cotización</button>
       <div id="histList"></div>
     </div>
   </section>
 
-  <!-- 14 · Exportación -->
+  <!-- 13 · Exportación -->
   <section class="card no-print">
-    <div class="sec-head"><span class="idx">14</span><h2>Exportar</h2></div>
+    <div class="sec-head"><span class="idx">13</span><h2>Exportar</h2></div>
     <div class="body">
       <div class="actions">
         <button class="btn primary" id="exportPdf">⤓ PDF</button>
@@ -530,6 +548,7 @@
           <label class="field"><span>Densidad esencia (g/ml)</span><input id="c_dens_esencia" type="number" step="0.01" inputmode="decimal"></label>
           <label class="field"><span>% esencia</span><input id="c_pct" type="number" step="0.1" inputmode="decimal"></label>
         </div>
+        <label class="field"><span>Margen objetivo por defecto (%)</span><input id="c_margen_default" type="number" step="1" inputmode="decimal"></label>
       </div>
 
       <div class="cfg-group">
@@ -606,6 +625,7 @@ const DEFAULT_CFG = {
   densidad: 0.90,        // mezcla g/ml
   densEsencia: 0.90,     // esencia g/ml (por defecto igual; ajustable)
   pctEsencia: 8,         // %
+  margenDefault: 80,     // % margen objetivo por defecto
   cera: 0.0120,          // $/g  (ejemplo)
   es120: 9.00,           // $ presentación 120 ml (ejemplo)
   es250: 16.00,          // $ presentación 250 ml (ejemplo)
@@ -633,9 +653,12 @@ const state = {
   envaseManualNombre: "",
   envaseManualCosto: 0,
   otrosNombre: "Otros",
-  otrosCosto: 0
+  otrosCosto: 0,
+  items: []          // velas agregadas a la cotización (carrito)
 };
+let editingItemId = null;  // id de la vela que se está editando, o null
 let HIST = [];
+let PRICE_ANCHOR = "margen"; // "margen" o "pvp": cuál fue el último editado
 
 /* ============================================================
    UTILIDADES
@@ -697,20 +720,36 @@ function compute(){
   // --- Mano de obra ---
   const moCost = num($("#f_mo").value);
 
-  // --- Total ---
+  // --- Costo de producción de ESTA vela (materiales + mano de obra) ---
   const costoTotal = ceraCost + esenciaCost + mechasCost + cintaCost +
                      cajaCost + etiquetaCost + fundaCost + envaseCost + moCost + otrosCost;
 
-  // --- Rentabilidad ---
-  const pvp = num($("#f_pvp").value);
-  const margen = costoTotal>0 ? (pvp - costoTotal)/costoTotal : 0;  // markup sobre costo
-  const ganancia = pvp - costoTotal;
-  const mult = costoTotal>0 ? pvp/costoTotal : 0;
-  const margenVenta = pvp>0 ? (pvp - costoTotal)/pvp : 0;           // margen sobre venta (informativo)
+  // --- Producción de TODA la cotización (carrito de velas) ---
+  // Si hay velas en el carrito, suma sus costos × cantidad.
+  // Si el carrito está vacío, usa la vela actual × la cantidad indicada.
+  const curQty = Math.max(1, parseInt($("#f_vela_qty").value) || 1);
+  const costoProduccion = state.items.length > 0
+    ? state.items.reduce((a, it) => a + it.qty * it.costoUnit, 0)
+    : costoTotal * curQty;
 
-  // --- Calculadora inversa ---
-  const margenObj = num($("#f_margen_obj").value)/100;
-  const pvpSugerido = costoTotal * (1 + margenObj);
+  // --- Movilización (por cotización, fuera de producción) ---
+  const movilizacion = num($("#f_mov").value);
+
+  // --- Costo final antes de margen ---
+  const costoFinal = costoProduccion + movilizacion;
+
+  // --- Precio: Margen y PVP vinculados (ancla = el último que editó el usuario) ---
+  let margen, pvp;
+  if(PRICE_ANCHOR === "pvp"){
+    pvp = num($("#f_pvp").value);
+    margen = costoFinal>0 ? (pvp - costoFinal)/costoFinal : 0;     // markup sobre costo final
+  }else{ // ancla por margen (por defecto)
+    margen = num($("#f_margen").value)/100;
+    pvp = costoFinal * (1 + margen);
+  }
+  const ganancia = pvp - costoFinal;                               // utilidad
+  const mult = costoFinal>0 ? pvp/costoFinal : 0;
+  const margenVenta = pvp>0 ? (pvp - costoFinal)/pvp : 0;          // margen sobre venta (informativo)
 
   return {
     ml, pesoTotal, esenciaG, ceraG,
@@ -719,9 +758,8 @@ function compute(){
     nMechas, mechasCost,
     cintaUnit, cintaCost,
     cajaCost, etiquetaCost, fundaCost, envaseCost, envObj, otrosCost,
-    moCost, costoTotal,
-    pvp, margen, ganancia, mult, margenVenta,
-    pvpSugerido
+    moCost, costoTotal, curQty, costoProduccion, movilizacion, costoFinal,
+    pvp, margen, ganancia, mult, margenVenta
   };
 }
 
@@ -758,9 +796,26 @@ function recalc(){
     return `<tr${zero}><td class="concept">${c}</td><td class="r num">${q}</td><td class="r num">${u}</td><td class="r num">$${money(t)}</td></tr>`;
   }).join("");
 
-  $("#o_costo_total").textContent = money(r.costoTotal);
+  $("#o_costo_candle").textContent = money(r.costoTotal);
 
-  // Rentabilidad
+  // Carrito de velas
+  renderCart(r);
+
+  // Escribir el campo NO editado (margen ↔ PVP vinculados)
+  if(PRICE_ANCHOR === "pvp"){ $("#f_margen").value = (r.costoFinal>0 ? +(r.margen*100).toFixed(1) : ""); }
+  else { $("#f_pvp").value = (r.costoFinal>0 ? +r.pvp.toFixed(2) : ""); }
+
+  // Construcción del precio (transparencia)
+  $("#priceBuild").innerHTML = [
+    ["Costo de producción (todas las velas)", `$${money(r.costoProduccion)}`],
+    ["+ Movilización", `$${money(r.movilizacion)}`],
+    ["= Costo final antes de margen", `$${money(r.costoFinal)}`, true],
+    ["Margen aplicado", `${money(r.margen*100,1)} %`],
+    ["Utilidad generada", `$${money(r.ganancia)}`],
+    ["PVP final", `$${money(r.pvp)}`, true],
+  ].map(([k,v,strong])=>`<div class="row"><span class="k">${k}</span><span class="v num" ${strong?'style="color:var(--gold-deep)"':''}>${v}</span></div>`).join("");
+
+  // Rentabilidad (sobre costo final)
   $("#o_margen").textContent   = money(r.margen*100,1);
   $("#o_ganancia").textContent = money(r.ganancia);
   $("#o_mult").textContent     = money(r.mult,2);
@@ -769,19 +824,17 @@ function recalc(){
   let color = "var(--low)", verdict="Margen bajo", emoji="🔴";
   if(r.margen*100 >= 70){ color="var(--ok)"; verdict="Margen saludable"; emoji="🟢"; }
   else if(r.margen*100 >= 40){ color="var(--mid)"; verdict="Margen aceptable"; emoji="🟡"; }
-  $("#meterFill").style.width = (r.pvp>0?Math.min(100,pct):0)+"%";
+  const hayPrecio = r.costoFinal>0 && r.pvp>0;
+  $("#meterFill").style.width = (hayPrecio?Math.min(100,pct):0)+"%";
   $("#meterFill").style.background = color;
-  $("#verdictDot").style.background = color;
-  if(r.pvp>0){
+  $("#verdictDot").style.background = hayPrecio?color:"var(--hair)";
+  if(hayPrecio){
     $("#verdictText").textContent = `${emoji} ${verdict} · ${money(r.margen*100,1)}% sobre costo`;
-    $("#marginNote").textContent = `Margen sobre venta: ${money(r.margenVenta*100,1)}%. Ganancia por unidad: $${money(r.ganancia)}.`;
+    $("#marginNote").textContent = `Margen sobre venta: ${money(r.margenVenta*100,1)}%. Utilidad: $${money(r.ganancia)}.`;
   }else{
-    $("#verdictText").textContent = "Ingresa un PVP para evaluar";
+    $("#verdictText").textContent = "Ingresa un margen o un PVP";
     $("#marginNote").textContent = "";
   }
-
-  // Inversa
-  $("#o_pvp_sugerido").textContent = money(r.pvpSugerido);
 
   // Resumen producción
   const matsOn = Object.entries(state.mat).filter(([k,v])=>v).map(([k])=>{
@@ -790,8 +843,12 @@ function recalc(){
     return k.charAt(0).toUpperCase()+k.slice(1);
   });
   const tiposMecha = state.mechas.map(m=> m.tipo==="otra" ? (m.nombre||"Otra") : `Mecha ${m.tipo}`);
+  const cartLine = state.items.length
+    ? [["Velas en la cotización", `${state.items.reduce((a,it)=>a+it.qty,0)} u (${state.items.length} tipo/s)`]]
+    : [];
   $("#prodSpec").innerHTML = [
-    ["Capacidad del envase", `${money(r.ml,0)} ml`],
+    ...cartLine,
+    ["Vela en edición — capacidad", `${money(r.ml,0)} ml`],
     ["Peso total mezcla", `${money(r.pesoTotal,1)} g`],
     ["Cera requerida", `${money(r.ceraG,1)} g`],
     ["Esencia requerida", `${money(r.esenciaG,1)} g`],
@@ -802,10 +859,10 @@ function recalc(){
   ].map(([k,v])=>`<div class="row"><span class="k">${k}</span><span class="v num">${v}</span></div>`).join("");
 
   // Barra fija
-  $("#sb_costo").textContent  = money(r.costoTotal);
+  $("#sb_costo").textContent  = money(r.costoFinal);
   $("#sb_pvp").textContent    = money(r.pvp);
   $("#sb_margen").textContent = money(r.margen*100,0);
-  $("#sb_dot").style.background = r.pvp>0?color:"var(--hair)";
+  $("#sb_dot").style.background = (r.costoFinal>0 && r.pvp>0)?color:"var(--hair)";
 
   return r;
 }
@@ -813,6 +870,82 @@ function recalc(){
 /* ============================================================
    CONSTRUCCIÓN de controles dinámicos
    ============================================================ */
+function renderMarginPresets(){
+  const presets=[40,60,80,100,120];
+  $("#marginPresets").innerHTML = presets.map(p=>
+    `<div class="pill" data-mp="${p}" style="min-width:auto;flex:1;justify-content:center;font-size:13px;font-weight:700">${p}%</div>`).join("");
+  document.querySelectorAll("[data-mp]").forEach(el=>el.onclick=()=>{
+    $("#f_margen").value=el.dataset.mp; PRICE_ANCHOR="margen"; recalc();
+  });
+}
+/* ============================================================
+   CARRITO DE VELAS (cotizar varias velas en una cotización)
+   ============================================================ */
+function candleSnapshot(){
+  return {
+    ml: num($("#f_ml").value), esencia: state.esencia,
+    mechas: JSON.parse(JSON.stringify(state.mechas)), mat: {...state.mat},
+    envaseSel: state.envaseSel, envaseManualNombre: state.envaseManualNombre, envaseManualCosto: state.envaseManualCosto,
+    otrosNombre: state.otrosNombre, otrosCosto: state.otrosCosto, mo: num($("#f_mo").value)
+  };
+}
+function applyCandleSnapshot(s){
+  if(!s) return;
+  $("#f_ml").value = s.ml||""; $("#f_mo").value = s.mo||"";
+  state.esencia = s.esencia || 120;
+  state.mechas = JSON.parse(JSON.stringify(s.mechas || [{tipo:"6",nombre:"",costo:0}]));
+  state.mat = {...(s.mat||{})};
+  state.envaseSel = (s.envaseSel===undefined?0:s.envaseSel);
+  state.envaseManualNombre = s.envaseManualNombre||""; state.envaseManualCosto = s.envaseManualCosto||0;
+  state.otrosNombre = s.otrosNombre||"Otros"; state.otrosCosto = s.otrosCosto||0;
+  renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials();
+}
+function addItem(){
+  const r=compute();
+  if(r.costoTotal<=0){ toast("Arma una vela con costo antes de agregar"); return; }
+  const qty = Math.max(1, parseInt($("#f_vela_qty").value)||1);
+  const nombre = $("#f_vela_nombre").value.trim() || `Vela ${state.items.length+1}`;
+  const snap = candleSnapshot();
+  if(editingItemId!==null){
+    const it=state.items.find(i=>i.id===editingItemId);
+    if(it){ it.nombre=nombre; it.qty=qty; it.costoUnit=+r.costoTotal.toFixed(4); it.snapshot=snap; }
+    editingItemId=null;
+  }else{
+    state.items.push({id:Date.now(), nombre, qty, costoUnit:+r.costoTotal.toFixed(4), snapshot:snap});
+  }
+  $("#f_vela_nombre").value=""; $("#f_vela_qty").value=1;
+  $("#editingNote").textContent=""; $("#addItem").textContent="＋ Agregar vela a la cotización";
+  recalc(); toast("Vela agregada a la cotización");
+}
+function editItem(id){
+  const it=state.items.find(i=>i.id===id); if(!it)return;
+  applyCandleSnapshot(it.snapshot);
+  $("#f_vela_nombre").value=it.nombre; $("#f_vela_qty").value=it.qty;
+  editingItemId=id;
+  $("#editingNote").textContent=`Editando “${it.nombre}” — toca el botón para guardar los cambios.`;
+  $("#addItem").textContent="✓ Guardar cambios de la vela";
+  recalc(); window.scrollTo({top:0,behavior:"smooth"});
+}
+function removeItem(id){
+  state.items=state.items.filter(i=>i.id!==id);
+  if(editingItemId===id){ editingItemId=null; $("#addItem").textContent="＋ Agregar vela a la cotización"; $("#editingNote").textContent=""; }
+  recalc();
+}
+function renderCart(r){
+  const wrap=$("#cartWrap");
+  if(!state.items.length){ wrap.style.display="none"; return; }
+  wrap.style.display="block";
+  $("#cartList").innerHTML = state.items.map(it=>`
+    <div class="hist-item" style="cursor:default">
+      <div class="meta"><b>${it.nombre}</b><small>${it.qty} × $${money(it.costoUnit)} = $${money(it.qty*it.costoUnit)}</small></div>
+      <button class="del" data-edit-item="${it.id}" aria-label="Editar" style="color:var(--gold-deep)">✎</button>
+      <button class="del" data-del-item="${it.id}" aria-label="Quitar">✕</button>
+    </div>`).join("");
+  $("#o_costo_prod").textContent = `$${money(r ? r.costoProduccion : 0)}`;
+  document.querySelectorAll("[data-edit-item]").forEach(b=>b.onclick=()=>editItem(+b.dataset.editItem));
+  document.querySelectorAll("[data-del-item]").forEach(b=>b.onclick=()=>removeItem(+b.dataset.delItem));
+}
+
 function renderEsenciaPills(){
   $("#esenciaPills").innerHTML = [120,250].map(v=>`
     <div class="pill ${state.esencia===v?'active':''}" data-es="${v}">
@@ -935,6 +1068,7 @@ function fillCfgForm(){
   $("#c_densidad").value=CFG.densidad;
   $("#c_dens_esencia").value=CFG.densEsencia;
   $("#c_pct").value=CFG.pctEsencia;
+  $("#c_margen_default").value=CFG.margenDefault;
   $("#c_cera").value=CFG.cera;
   $("#c_es120").value=CFG.es120;
   $("#c_es250").value=CFG.es250;
@@ -961,6 +1095,7 @@ function readCfgForm(){
   CFG.densidad=num($("#c_densidad").value);
   CFG.densEsencia=num($("#c_dens_esencia").value);
   CFG.pctEsencia=num($("#c_pct").value);
+  CFG.margenDefault=num($("#c_margen_default").value);
   CFG.cera=num($("#c_cera").value);
   CFG.es120=num($("#c_es120").value);
   CFG.es250=num($("#c_es250").value);
@@ -1078,31 +1213,30 @@ function downloadTemplate(){
 function exportXlsx(){
   if(!window.XLSX){ toast("Librería Excel no disponible"); return; }
   const r=recalc();
+  const xItems = state.items.length
+    ? state.items
+    : [{nombre:($("#f_vela_nombre").value.trim()||"Vela"), qty:r.curQty, costoUnit:r.costoTotal}];
+  const factor = 1 + r.margen;
   const info=[
     ["AMARÚ · Cotización"],[""],
     ["Cliente",$("#f_cliente").value],["Proyecto",$("#f_proyecto").value],
     ["Fecha",$("#f_fecha").value],["Observaciones",$("#f_obs").value],[""],
-    ["Capacidad (ml)",r.ml],["Peso total (g)",+r.pesoTotal.toFixed(2)],
-    ["Cera (g)",+r.ceraG.toFixed(2)],["Esencia (g)",+r.esenciaG.toFixed(2)],[""],
-    ["Concepto","Cantidad","C. Unitario","Total"],
-    ["Cera",+r.ceraG.toFixed(2),+r.ceraUnit.toFixed(4),+r.ceraCost.toFixed(2)],
-    [`Esencia ${r.presMl} ml`,+r.esenciaG.toFixed(2),+r.esenciaUnit.toFixed(4),+r.esenciaCost.toFixed(2)],
-    ["Mechas",r.nMechas,"",+r.mechasCost.toFixed(2)],
-    ["Cinta doble faz",r.nMechas,+r.cintaUnit.toFixed(4),+r.cintaCost.toFixed(2)],
-    ["Caja","","",+r.cajaCost.toFixed(2)],
-    ["Etiqueta","","",+r.etiquetaCost.toFixed(2)],
-    ["Funda","","",+r.fundaCost.toFixed(2)],
-    ["Envase","","",+r.envaseCost.toFixed(2)],
-    ["Mano de obra","","",+r.moCost.toFixed(2)],
-    ["Otros","","",+r.otrosCost.toFixed(2)],
-    ["COSTO TOTAL","","",+r.costoTotal.toFixed(2)],[""],
-    ["PVP",+r.pvp.toFixed(2)],["Margen %",+(r.margen*100).toFixed(1)],
-    ["Ganancia",+r.ganancia.toFixed(2)],["Multiplicador",+r.mult.toFixed(2)],
+    ["VELAS DE LA COTIZACIÓN"],
+    ["Vela","Cantidad","Costo unit.","Costo total","Precio unit.","Subtotal venta"],
+    ...xItems.map(it=>[it.nombre, it.qty, +(+it.costoUnit).toFixed(2), +(it.qty*it.costoUnit).toFixed(2),
+                       +(it.costoUnit*factor).toFixed(2), +(it.qty*it.costoUnit*factor).toFixed(2)]),
+    [""],
+    ["COSTO DE PRODUCCIÓN (todas las velas)","","",+r.costoProduccion.toFixed(2)],
+    ["Movilización","","",+r.movilizacion.toFixed(2)],
+    ["COSTO FINAL ANTES DE MARGEN","","",+r.costoFinal.toFixed(2)],[""],
+    ["Margen aplicado %",+(r.margen*100).toFixed(1)],
+    ["Utilidad",+r.ganancia.toFixed(2)],
+    ["PVP final",+r.pvp.toFixed(2)],["Multiplicador",+r.mult.toFixed(2)],
   ];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(info), "Cotización");
-  const h=[["Fecha","Cliente","Proyecto","Capacidad","Costo Total","PVP","Margen %","Ganancia"],
-    ...HIST.map(x=>[x.fecha,x.cliente,x.proyecto,x.ml,x.costo,x.pvp,(x.margen*100).toFixed(1),x.ganancia])];
+  const h=[["Fecha","Cliente","Proyecto","Costo Producción","Movilización","Costo Final","PVP","Margen %","Utilidad","Estado"],
+    ...HIST.map(x=>[x.fecha,x.cliente,x.proyecto,(x.costoProd??""),(x.movilizacion??""),x.costo,x.pvp,(x.margen*100).toFixed(1),x.ganancia,x.estado||"Aprobada"])];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(h), "Historial Cotizaciones");
   const cli=($("#f_cliente").value||"cotizacion").replace(/[^\w]+/g,"_");
   XLSX.writeFile(wb, `AMARU_${cli}.xlsx`);
@@ -1129,43 +1263,41 @@ function exportPdf(){
   doc.text(`Cliente: ${cli}`, 40, 100);
   doc.text(`Proyecto: ${pro}`, 40, 114);
   doc.text(`Fecha: ${fch}`, W-40, 100, {align:"right"});
-  doc.text(`Capacidad: ${money(r.ml,0)} ml`, W-40, 114, {align:"right"});
+  doc.text(`Fecha: ${fch}`, W-40, 100, {align:"right"});
+
+  // Velas con precio al cliente (precio = costo × (1 + margen))
+  const pdfItems = state.items.length
+    ? state.items
+    : [{nombre:($("#f_vela_nombre").value.trim()||"Vela"), qty:r.curQty, costoUnit:r.costoTotal}];
+  const factor = 1 + r.margen;
+  const body = pdfItems.map(it=>{
+    const pu = it.costoUnit * factor;
+    return [it.nombre, `${it.qty}`, `$${money(pu)}`, `$${money(pu*it.qty)}`];
+  });
+  if(r.movilizacion>0){ body.push(["Movilización / envío","","",`$${money(r.movilizacion*factor)}`]); }
 
   doc.autoTable({
-    startY:130,
-    head:[["Concepto","Cantidad","C. Unitario","Total"]],
-    body:[
-      ["Cera",`${money(r.ceraG,1)} g`,`$${money(r.ceraUnit,4)}/g`,`$${money(r.ceraCost)}`],
-      [`Esencia ${r.presMl} ml`,`${money(r.esenciaG,1)} g`,`$${money(r.esenciaUnit,4)}/g`,`$${money(r.esenciaCost)}`],
-      ["Mechas",`${r.nMechas} u`,"",`$${money(r.mechasCost)}`],
-      ["Cinta doble faz",`${r.nMechas} u`,`$${money(r.cintaUnit,4)}`,`$${money(r.cintaCost)}`],
-      ["Caja","","",`$${money(r.cajaCost)}`],
-      ["Etiqueta","","",`$${money(r.etiquetaCost)}`],
-      ["Funda","","",`$${money(r.fundaCost)}`],
-      ["Envase","","",`$${money(r.envaseCost)}`],
-      ["Mano de obra","","",`$${money(r.moCost)}`],
-      ["Otros","","",`$${money(r.otrosCost)}`],
-    ],
-    foot:[["COSTO TOTAL","","",`$${money(r.costoTotal)}`]],
+    startY:128,
+    head:[["Detalle","Cant.","Precio unit.","Subtotal"]],
+    body: body,
+    foot:[["TOTAL","","",`$${money(r.pvp)}`]],
     theme:"plain",
-    headStyles:{textColor:muted,fontSize:8,fontStyle:"bold",lineWidth:{bottom:0.5},lineColor:gold},
-    footStyles:{textColor:ink,fontStyle:"bold",fontSize:11,lineWidth:{top:0.5},lineColor:gold},
-    bodyStyles:{textColor:ink,fontSize:9.5},
+    headStyles:{textColor:muted,fontSize:9,fontStyle:"bold",lineWidth:{bottom:0.5},lineColor:gold},
+    footStyles:{textColor:ink,fontStyle:"bold",fontSize:13,lineWidth:{top:0.5},lineColor:gold},
+    bodyStyles:{textColor:ink,fontSize:10.5},
     columnStyles:{1:{halign:"right"},2:{halign:"right"},3:{halign:"right"}},
     margin:{left:40,right:40}
   });
 
-  let y=doc.lastAutoTable.finalY + 24;
-  doc.setFontSize(11); doc.setTextColor(...ink);
-  doc.text(`PVP:  $${money(r.pvp)}`, 40, y);
-  doc.text(`Margen:  ${money(r.margen*100,1)}%`, 40, y+16);
-  doc.text(`Ganancia:  $${money(r.ganancia)}`, W-40, y, {align:"right"});
-  doc.text(`Multiplicador:  ${money(r.mult,2)}×`, W-40, y+16, {align:"right"});
-
+  let y=doc.lastAutoTable.finalY + 22;
   if($("#f_obs").value){
     doc.setFontSize(9); doc.setTextColor(...muted);
-    doc.text(`Observaciones: ${$("#f_obs").value}`, 40, y+40, {maxWidth:W-80});
+    doc.text(`Observaciones: ${$("#f_obs").value}`, 40, y, {maxWidth:W-80});
+    y += 20;
   }
+  doc.setFontSize(8); doc.setTextColor(...muted);
+  doc.text("Gracias por confiar en AMARÚ.", 40, y+4);
+
   const cliF=(cli||"cotizacion").replace(/[^\w]+/g,"_");
   doc.save(`AMARU_${cliF}.pdf`);
 }
@@ -1174,11 +1306,16 @@ function exportPdf(){
    SINCRONIZACIÓN · hoja compartida (Google Apps Script Web App)
    ============================================================ */
 let GAS_URL = "";
-function buildDetalle(s){
-  if(!s) return "";
+function buildDetalle(q){
+  if(!q) return "";
+  if(q.items && q.items.length){
+    return q.items.map(it=>`${it.qty}× ${it.nombre}`).join(", ") + ((+q.movilizacion>0)?` · mov $${(+q.movilizacion).toFixed(2)}`:"");
+  }
+  const s = q.snapshot || {};
   const mech = (s.mechas||[]).map(m=> m.tipo==="otra"?(m.nombre||"Otra"):`M${m.tipo}`).join("+");
   const mats = Object.entries(s.mat||{}).filter(([k,v])=>v).map(([k])=>k).join(", ");
-  return `${s.ml||0}ml · esencia ${s.esencia}ml · mechas ${mech||"-"} · ${mats||"sin extras"}`;
+  const mov = (q.movilizacion && +q.movilizacion>0) ? ` · movilización $${(+q.movilizacion).toFixed(2)}` : "";
+  return `${s.ml||0}ml · esencia ${s.esencia}ml · mechas ${mech||"-"} · ${mats||"sin extras"}${mov}`;
 }
 async function cloudPush(q){
   if(!GAS_URL) return;
@@ -1187,7 +1324,7 @@ async function cloudPush(q){
       headers:{"Content-Type":"text/plain;charset=utf-8"}, // texto plano: evita el preflight CORS
       body:JSON.stringify({ id:q.id, fecha:q.fecha, cliente:q.cliente, proyecto:q.proyecto,
         estado:q.estado||"Aprobada", ml:q.ml, costo:q.costo, pvp:q.pvp,
-        margen:+(q.margen*100).toFixed(1), ganancia:q.ganancia, detalle:buildDetalle(q.snapshot) }) });
+        margen:+(q.margen*100).toFixed(1), ganancia:q.ganancia, detalle:buildDetalle(q) }) });
   }catch(e){ /* sin conexión: queda guardada localmente igual */ }
 }
 async function cloudDelete(id){
@@ -1218,19 +1355,26 @@ async function cloudPull(){
    ============================================================ */
 async function saveQuote(){
   const r=recalc();
-  if(r.costoTotal<=0){ toast("Calcula un costo antes de guardar"); return; }
+  if(r.costoFinal<=0){ toast("Calcula un costo antes de guardar"); return; }
+  const items = state.items.length
+    ? state.items.map(it=>({nombre:it.nombre, qty:it.qty, costoUnit:it.costoUnit, snapshot:it.snapshot}))
+    : [{nombre:($("#f_vela_nombre").value.trim()||"Vela"), qty:r.curQty, costoUnit:+r.costoTotal.toFixed(4), snapshot:candleSnapshot()}];
   const q={
     id:Date.now(),
     fecha:$("#f_fecha").value || new Date().toISOString().slice(0,10),
     cliente:$("#f_cliente").value||"—",
     proyecto:$("#f_proyecto").value||"—",
     estado:"Aprobada",
-    ml:r.ml, costo:+r.costoTotal.toFixed(2), pvp:+r.pvp.toFixed(2),
+    ml:r.ml, costo:+r.costoFinal.toFixed(2), costoProd:+r.costoProduccion.toFixed(2),
+    movilizacion:+r.movilizacion.toFixed(2), pvp:+r.pvp.toFixed(2),
     margen:r.margen, ganancia:+r.ganancia.toFixed(2),
-    snapshot:{ ml:r.ml, esencia:state.esencia, mechas:state.mechas, mat:state.mat,
+    items: items,
+    snapshot:{ items: JSON.parse(JSON.stringify(state.items)),
+               ml:r.ml, esencia:state.esencia, mechas:state.mechas, mat:state.mat,
                envaseSel:state.envaseSel, envaseManualNombre:state.envaseManualNombre, envaseManualCosto:state.envaseManualCosto,
                otrosNombre:state.otrosNombre, otrosCosto:state.otrosCosto,
-               mo:num($("#f_mo").value), pvp:r.pvp, margenObj:$("#f_margen_obj").value,
+               mo:num($("#f_mo").value), mov:num($("#f_mov").value),
+               anchor:PRICE_ANCHOR, margenPct:$("#f_margen").value, pvp:r.pvp,
                cliente:$("#f_cliente").value, proyecto:$("#f_proyecto").value,
                fecha:$("#f_fecha").value, obs:$("#f_obs").value }
   };
@@ -1260,11 +1404,16 @@ function loadQuote(id){
   if(!s){ toast("Esta cotización viene de la hoja compartida (sin detalle para recargar)"); return; }
   $("#f_cliente").value=s.cliente||""; $("#f_proyecto").value=s.proyecto||"";
   $("#f_fecha").value=s.fecha||""; $("#f_obs").value=s.obs||"";
-  $("#f_ml").value=s.ml||""; $("#f_mo").value=s.mo||""; $("#f_pvp").value=s.pvp||"";
-  $("#f_margen_obj").value=s.margenObj||"";
+  $("#f_ml").value=s.ml||""; $("#f_mo").value=s.mo||""; $("#f_mov").value=s.mov||"";
+  PRICE_ANCHOR = s.anchor || "margen";
+  $("#f_margen").value = s.margenPct || "";
+  $("#f_pvp").value = s.pvp || "";
   state.esencia=s.esencia; state.mechas=s.mechas; state.mat=s.mat;
   state.envaseSel=(s.envaseSel===undefined?0:s.envaseSel); state.envaseManualNombre=s.envaseManualNombre||""; state.envaseManualCosto=s.envaseManualCosto||0;
   state.otrosNombre=s.otrosNombre||"Otros"; state.otrosCosto=s.otrosCosto||0;
+  state.items = Array.isArray(s.items) ? JSON.parse(JSON.stringify(s.items)) : [];
+  editingItemId=null; $("#addItem").textContent="＋ Agregar vela a la cotización"; $("#editingNote").textContent="";
+  $("#f_vela_nombre").value=""; $("#f_vela_qty").value=1;
   renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials(); recalc();
   window.scrollTo({top:0,behavior:"smooth"}); toast("Cotización cargada");
 }
@@ -1279,12 +1428,17 @@ async function init(){
   const gas=await Store.get("amaru_gas"); if(gas){ GAS_URL=gas; $("#gasUrl").value=gas; }
 
   $("#f_fecha").value=new Date().toISOString().slice(0,10);
+  $("#f_margen").value = CFG.margenDefault || 80;   // margen objetivo por defecto
+  PRICE_ANCHOR = "margen";
 
-  renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials();
+  renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials(); renderMarginPresets();
   fillCfgForm(); renderHist(); recalc();
 
   // listeners de inputs en vivo
-  ["f_ml","f_mo","f_pvp","f_margen_obj"].forEach(id=>$("#"+id).addEventListener("input",recalc));
+  ["f_ml","f_mo","f_mov","f_vela_qty"].forEach(id=>$("#"+id).addEventListener("input",recalc));
+  $("#f_margen").addEventListener("input",()=>{ PRICE_ANCHOR="margen"; recalc(); });
+  $("#f_pvp").addEventListener("input",()=>{ PRICE_ANCHOR="pvp"; recalc(); });
+  $("#addItem").onclick=addItem;
 
   // historial colapsable
   $("#sec-historial .sec-head").onclick=()=>$("#sec-historial").classList.toggle("open");
@@ -1296,7 +1450,7 @@ async function init(){
   $("#openCfg").onclick=()=>{ fillCfgForm(); $("#cfgModal").classList.add("open"); };
   $("#closeCfg").onclick=async()=>{ await saveCfg(); $("#cfgModal").classList.remove("open"); toast("Costos guardados"); };
   $("#cfgModal").onclick=e=>{ if(e.target.id==="cfgModal"){ $("#closeCfg").click(); } };
-  ["c_densidad","c_dens_esencia","c_pct","c_cera","c_es120","c_es250","c_mecha6","c_mecha10","c_caja","c_etiqueta","c_funda","c_cinta"]
+  ["c_densidad","c_dens_esencia","c_pct","c_margen_default","c_cera","c_es120","c_es250","c_mecha6","c_mecha10","c_caja","c_etiqueta","c_funda","c_cinta"]
     .forEach(id=>$("#"+id).addEventListener("input",()=>{ readCfgForm(); renderEsenciaPills(); renderMechaList(); renderMaterials(); recalc(); }));
   $("#addEnvase").onclick=()=>{ CFG.envases.push({name:"Nuevo envase", cost:0}); renderEnvaseCfg(); };
   $("#resetCfg").onclick=async()=>{ CFG=JSON.parse(JSON.stringify(DEFAULT_CFG)); await Store.set("amaru_cfg",CFG); fillCfgForm(); renderEsenciaPills(); renderMechaList(); renderMaterials(); recalc(); toast("Valores restablecidos"); };
@@ -1318,9 +1472,6 @@ async function init(){
   $("#exportPdf").onclick=exportPdf;
   $("#exportXlsx").onclick=exportXlsx;
   $("#printQuote").onclick=()=>window.print();
-
-  // inversa → aplicar PVP
-  $("#applyPvp").onclick=()=>{ const r=compute(); $("#f_pvp").value=r.pvpSugerido.toFixed(2); recalc(); toast("PVP aplicado"); };
 
   // guardar
   $("#saveQuote").onclick=saveQuote;
