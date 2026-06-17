@@ -406,9 +406,9 @@
     </div>
   </section>
 
-  <!-- 8 · Desglose -->
+  <!-- 8 · Desglose de la vela -->
   <section class="card">
-    <div class="sec-head"><span class="idx">08</span><h2>Desglose y velas</h2><span class="hint">arma cada vela y agrégala</span></div>
+    <div class="sec-head"><span class="idx">08</span><h2>Desglose de la vela</h2><span class="hint">costo de la vela actual</span></div>
     <div class="body">
       <table class="breakdown">
         <thead><tr><th>Concepto</th><th class="r">Cantidad</th><th class="r">C. Unitario</th><th class="r">Total</th></tr></thead>
@@ -418,57 +418,56 @@
         <span class="lbl">Costo de esta vela</span>
         <span class="amt num"><span class="c">$</span><span id="o_costo_candle">0.00</span></span>
       </div>
+    </div>
+  </section>
 
-      <div class="grid2" style="margin-top:14px;align-items:end">
-        <label class="field" style="margin:0"><span>Nombre de la vela</span>
+  <!-- 9 · Precio de esta vela -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">09</span><h2>Precio de esta vela</h2><span class="hint">margen y PVP</span></div>
+    <div class="body">
+      <div class="grid2">
+        <label class="field" style="margin:0"><span>Margen deseado <span class="unit">(%)</span></span>
+          <input id="f_margen" type="number" min="0" step="1" inputmode="decimal" placeholder="80" />
+        </label>
+        <label class="field" style="margin:0"><span>PVP unitario <span class="unit">($)</span></span>
+          <input id="f_pvp" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </label>
+      </div>
+      <div class="smallnote" style="margin:8px 0 10px">El margen se aplica al costo de esta vela. Edita cualquiera: margen → PVP, o PVP → margen.</div>
+      <div class="pills" id="marginPresets"></div>
+
+      <div class="spec" id="velaResumen" style="grid-template-columns:1fr;margin-top:12px"></div>
+
+      <div class="grid2" style="margin-top:12px;align-items:end">
+        <label class="field" style="margin:0"><span>Descripción de la vela</span>
           <input id="f_vela_nombre" type="text" placeholder="Ej. Vela 200 ml lavanda" />
         </label>
         <label class="field" style="margin:0"><span>Cantidad</span>
           <input id="f_vela_qty" type="number" min="1" step="1" inputmode="numeric" value="1" />
         </label>
       </div>
-      <button class="btn block gold no-print" id="addItem" style="margin-top:10px">＋ Agregar vela a la cotización</button>
+      <button class="btn block gold no-print" id="addItem" style="margin-top:12px">✓ Aprobar y agregar a la cotización</button>
       <div class="smallnote" id="editingNote" style="text-align:center;margin-top:6px"></div>
-
-      <div id="cartWrap" style="margin-top:16px;border-top:1px dashed var(--hair);padding-top:14px;display:none">
-        <div style="font-size:12px;font-weight:700;color:var(--gold-deep);letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px">Velas en la cotización</div>
-        <div id="cartList"></div>
-        <div class="spec" style="grid-template-columns:1fr;margin-top:4px">
-          <div class="row"><span class="k">Costo de producción (todas las velas)</span><span class="v num" id="o_costo_prod" style="color:var(--gold-deep)">$0.00</span></div>
-        </div>
-      </div>
     </div>
   </section>
 
-  <!-- 9 · Precio y margen (vinculados) -->
+  <!-- 10 · Velas agregadas a la cotización -->
   <section class="card">
-    <div class="sec-head"><span class="idx">09</span><h2>Precio y margen</h2><span class="hint">se calculan entre sí</span></div>
+    <div class="sec-head"><span class="idx">10</span><h2>Velas agregadas a la cotización</h2><span class="hint" id="itemsCount"></span></div>
     <div class="body">
-      <div class="grid2">
-        <label class="field" style="margin:0"><span>Margen deseado <span class="unit">(%)</span></span>
-          <input id="f_margen" type="number" min="0" step="1" inputmode="decimal" placeholder="80" />
-        </label>
-        <label class="field" style="margin:0"><span>PVP final <span class="unit">($)</span></span>
-          <input id="f_pvp" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-        </label>
+      <div id="itemsEmpty" class="hist-empty">Aún no agregas velas. Arma una arriba y toca “Aprobar y agregar a la cotización”.</div>
+      <div id="itemsTableWrap" style="overflow-x:auto;display:none">
+        <table class="breakdown" style="min-width:680px">
+          <thead><tr>
+            <th>#</th><th>Descripción</th><th class="r">Capacidad</th><th class="r">Cera</th><th class="r">Esencia</th>
+            <th>Mechas</th><th>Materiales</th><th class="r">Costo total</th><th class="r">PVP</th><th class="r">Margen</th><th>Acciones</th>
+          </tr></thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
       </div>
-      <div class="smallnote" style="margin:8px 0 10px">Edita cualquiera: si pones el margen, se calcula el PVP; si pones el PVP, se calcula el margen.</div>
-      <div class="pills" id="marginPresets"></div>
-    </div>
-  </section>
-
-  <!-- 10 · Construcción del precio y rentabilidad -->
-  <section class="card">
-    <div class="sec-head"><span class="idx">10</span><h2>Rentabilidad</h2><span class="hint">cómo se arma el precio</span></div>
-    <div class="body">
-      <div class="spec" id="priceBuild" style="grid-template-columns:1fr;margin-bottom:14px"></div>
-      <div class="kpis">
-        <div class="kpi"><div class="k">Margen / costo</div><div class="v num"><span id="o_margen">0</span><small>%</small></div></div>
-        <div class="kpi"><div class="k">Utilidad</div><div class="v num"><small>$</small><span id="o_ganancia">0.00</span></div></div>
-        <div class="kpi"><div class="k">Multiplicador</div><div class="v num"><span id="o_mult">0.00</span><small>×</small></div></div>
-      </div>
-      <div class="meter"><i id="meterFill"></i></div>
-      <div class="verdict"><span class="dot" id="verdictDot"></span><span id="verdictText">Ingresa un margen o un PVP</span></div>
+      <div class="spec" id="cotiTotals" style="grid-template-columns:1fr;margin-top:16px;display:none"></div>
+      <div class="meter" style="margin-top:12px"><i id="meterFill"></i></div>
+      <div class="verdict"><span class="dot" id="verdictDot"></span><span id="verdictText">Agrega velas para ver la rentabilidad</span></div>
       <div class="smallnote" id="marginNote"></div>
     </div>
   </section>
@@ -508,7 +507,7 @@
 <div class="stickybar">
   <div class="inner">
     <div class="sb-item cost"><span class="k">Costo</span><span class="v num">$<span id="sb_costo">0.00</span></span></div>
-    <div class="sb-item"><span class="k">PVP</span><span class="v num">$<span id="sb_pvp">0.00</span></span></div>
+    <div class="sb-item"><span class="k">Total</span><span class="v num">$<span id="sb_pvp">0.00</span></span></div>
     <div class="sb-verdict"><span class="dot" id="sb_dot"></span><span class="num"><span id="sb_margen">0</span>%</span></div>
   </div>
 </div>
@@ -557,12 +556,10 @@
       </div>
 
       <div class="cfg-group">
-        <h3>Esencias (costo de la presentación)</h3>
-        <div class="grid2">
-          <label class="field"><span>Presentación 120 ml ($)</span><input id="c_es120" type="number" step="0.01" inputmode="decimal"></label>
-          <label class="field"><span>Presentación 250 ml ($)</span><input id="c_es250" type="number" step="0.01" inputmode="decimal"></label>
-        </div>
-        <div class="smallnote">El costo por gramo de esencia se calcula: costo presentación ÷ (ml × densidad esencia).</div>
+        <h3>Esencias (tamaño y costo de la presentación)</h3>
+        <div id="esenciaCfg"></div>
+        <button class="btn" id="addEsencia" style="margin-top:4px">＋ Agregar presentación</button>
+        <div class="smallnote">Pon el tamaño en ml y el costo del frasco. El costo por gramo se calcula: costo ÷ (ml × densidad esencia).</div>
       </div>
 
       <div class="cfg-group">
@@ -627,8 +624,10 @@ const DEFAULT_CFG = {
   pctEsencia: 8,         // %
   margenDefault: 80,     // % margen objetivo por defecto
   cera: 0.0120,          // $/g  (ejemplo)
-  es120: 9.00,           // $ presentación 120 ml (ejemplo)
-  es250: 16.00,          // $ presentación 250 ml (ejemplo)
+  esencias: [             // presentaciones de esencia (ml + costo del frasco)
+    {ml:120, cost:9.00},
+    {ml:225, cost:28.06}
+  ],
   mecha6: 0.15,          // $ (ejemplo)
   mecha10: 0.22,         // $ (ejemplo)
   caja: 1.20,            // $ (ejemplo)
@@ -645,7 +644,7 @@ let CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
 
 /* ESTADO de la cotización actual */
 const state = {
-  esencia: 120,            // 120 | 250
+  esencia: 0,              // índice en CFG.esencias
   nMechas: 1,
   mechas: [{tipo:"6", nombre:"", costo:0}],
   mat: { caja:false, etiqueta:false, funda:false, envase:false, otros:false },
@@ -687,8 +686,9 @@ function compute(){
 
   // --- Costo esencia ---
   // $/g = costo presentación ÷ (ml presentación × densidad esencia)
-  const presMl = state.esencia;                       // 120 | 250
-  const presCost = state.esencia === 250 ? CFG.es250 : CFG.es120;
+  const presObj = CFG.esencias[state.esencia] || CFG.esencias[0] || {ml:0, cost:0};
+  const presMl = presObj.ml;
+  const presCost = presObj.cost;
   const esenciaUnit = (presMl * (CFG.densEsencia||0)) > 0 ? presCost / (presMl * CFG.densEsencia) : 0; // $/g
   const esenciaCost = esenciaG * esenciaUnit;
 
@@ -724,32 +724,21 @@ function compute(){
   const costoTotal = ceraCost + esenciaCost + mechasCost + cintaCost +
                      cajaCost + etiquetaCost + fundaCost + envaseCost + moCost + otrosCost;
 
-  // --- Producción de TODA la cotización (carrito de velas) ---
-  // Si hay velas en el carrito, suma sus costos × cantidad.
-  // Si el carrito está vacío, usa la vela actual × la cantidad indicada.
+  // --- Cantidad de esta vela ---
   const curQty = Math.max(1, parseInt($("#f_vela_qty").value) || 1);
-  const costoProduccion = state.items.length > 0
-    ? state.items.reduce((a, it) => a + it.qty * it.costoUnit, 0)
-    : costoTotal * curQty;
 
-  // --- Movilización (por cotización, fuera de producción) ---
-  const movilizacion = num($("#f_mov").value);
-
-  // --- Costo final antes de margen ---
-  const costoFinal = costoProduccion + movilizacion;
-
-  // --- Precio: Margen y PVP vinculados (ancla = el último que editó el usuario) ---
-  let margen, pvp;
+  // --- Precio de ESTA vela: margen ↔ PVP unitario (vinculados) ---
+  const costoUnit = costoTotal;                 // costo de una vela
+  let margen, pvpUnit;
   if(PRICE_ANCHOR === "pvp"){
-    pvp = num($("#f_pvp").value);
-    margen = costoFinal>0 ? (pvp - costoFinal)/costoFinal : 0;     // markup sobre costo final
+    pvpUnit = num($("#f_pvp").value);
+    margen = costoUnit>0 ? (pvpUnit - costoUnit)/costoUnit : 0;
   }else{ // ancla por margen (por defecto)
     margen = num($("#f_margen").value)/100;
-    pvp = costoFinal * (1 + margen);
+    pvpUnit = costoUnit * (1 + margen);
   }
-  const ganancia = pvp - costoFinal;                               // utilidad
-  const mult = costoFinal>0 ? pvp/costoFinal : 0;
-  const margenVenta = pvp>0 ? (pvp - costoFinal)/pvp : 0;          // margen sobre venta (informativo)
+  const utilidadUnit = pvpUnit - costoUnit;
+  const mult = costoUnit>0 ? pvpUnit/costoUnit : 0;
 
   return {
     ml, pesoTotal, esenciaG, ceraG,
@@ -758,9 +747,20 @@ function compute(){
     nMechas, mechasCost,
     cintaUnit, cintaCost,
     cajaCost, etiquetaCost, fundaCost, envaseCost, envObj, otrosCost,
-    moCost, costoTotal, curQty, costoProduccion, movilizacion, costoFinal,
-    pvp, margen, ganancia, mult, margenVenta
+    moCost, costoTotal, costoUnit, curQty,
+    margen, pvpUnit, utilidadUnit, mult
   };
+}
+
+// Totales de la cotización (suma de todos los ítems aprobados)
+function computeTotals(){
+  let prod=0, pvp=0;
+  state.items.forEach(it=>{ prod += it.qty*it.costoUnit; pvp += it.qty*it.pvpUnit; });
+  const ganancia = pvp - prod;
+  const margenPond = prod>0 ? ganancia/prod : 0;     // margen promedio ponderado por costo
+  const mov = num($("#f_mov").value);
+  const totalFinal = pvp + mov;
+  return {prod, pvp, ganancia, margenPond, mov, totalFinal, n:state.items.length};
 }
 
 /* ============================================================
@@ -798,57 +798,48 @@ function recalc(){
 
   $("#o_costo_candle").textContent = money(r.costoTotal);
 
-  // Carrito de velas
-  renderCart(r);
+  // Campo vinculado (margen ↔ PVP) de ESTA vela
+  if(PRICE_ANCHOR === "pvp"){ $("#f_margen").value = (r.costoUnit>0 ? +(r.margen*100).toFixed(1) : ""); }
+  else { $("#f_pvp").value = (r.costoUnit>0 ? +r.pvpUnit.toFixed(2) : ""); }
 
-  // Escribir el campo NO editado (margen ↔ PVP vinculados)
-  if(PRICE_ANCHOR === "pvp"){ $("#f_margen").value = (r.costoFinal>0 ? +(r.margen*100).toFixed(1) : ""); }
-  else { $("#f_pvp").value = (r.costoFinal>0 ? +r.pvp.toFixed(2) : ""); }
-
-  // Construcción del precio (transparencia)
-  $("#priceBuild").innerHTML = [
-    ["Costo de producción (todas las velas)", `$${money(r.costoProduccion)}`],
-    ["+ Movilización", `$${money(r.movilizacion)}`],
-    ["= Costo final antes de margen", `$${money(r.costoFinal)}`, true],
+  // Resumen de precio de ESTA vela
+  $("#velaResumen").innerHTML = [
+    ["Costo de esta vela", `$${money(r.costoUnit)}`],
     ["Margen aplicado", `${money(r.margen*100,1)} %`],
-    ["Utilidad generada", `$${money(r.ganancia)}`],
-    ["PVP final", `$${money(r.pvp)}`, true],
+    ["PVP unitario", `$${money(r.pvpUnit)}`, true],
+    ["Utilidad por vela", `$${money(r.utilidadUnit)}`],
   ].map(([k,v,strong])=>`<div class="row"><span class="k">${k}</span><span class="v num" ${strong?'style="color:var(--gold-deep)"':''}>${v}</span></div>`).join("");
 
-  // Rentabilidad (sobre costo final)
-  $("#o_margen").textContent   = money(r.margen*100,1);
-  $("#o_ganancia").textContent = money(r.ganancia);
-  $("#o_mult").textContent     = money(r.mult,2);
+  // Tabla de velas agregadas + totales de la cotización
+  renderItemsTable();
 
-  const pct = Math.max(0, Math.min(100, r.margen*100));
+  // Indicador de rentabilidad: margen promedio ponderado de la cotización
+  const t=computeTotals();
+  const mp = t.margenPond*100;
   let color = "var(--low)", verdict="Margen bajo", emoji="🔴";
-  if(r.margen*100 >= 70){ color="var(--ok)"; verdict="Margen saludable"; emoji="🟢"; }
-  else if(r.margen*100 >= 40){ color="var(--mid)"; verdict="Margen aceptable"; emoji="🟡"; }
-  const hayPrecio = r.costoFinal>0 && r.pvp>0;
-  $("#meterFill").style.width = (hayPrecio?Math.min(100,pct):0)+"%";
+  if(mp >= 70){ color="var(--ok)"; verdict="Margen saludable"; emoji="🟢"; }
+  else if(mp >= 40){ color="var(--mid)"; verdict="Margen aceptable"; emoji="🟡"; }
+  const hayItems = t.n>0 && t.prod>0;
+  $("#meterFill").style.width = (hayItems?Math.min(100,Math.max(0,mp)):0)+"%";
   $("#meterFill").style.background = color;
-  $("#verdictDot").style.background = hayPrecio?color:"var(--hair)";
-  if(hayPrecio){
-    $("#verdictText").textContent = `${emoji} ${verdict} · ${money(r.margen*100,1)}% sobre costo`;
-    $("#marginNote").textContent = `Margen sobre venta: ${money(r.margenVenta*100,1)}%. Utilidad: $${money(r.ganancia)}.`;
+  $("#verdictDot").style.background = hayItems?color:"var(--hair)";
+  if(hayItems){
+    $("#verdictText").textContent = `${emoji} ${verdict} · margen ponderado ${money(mp,1)}%`;
+    $("#marginNote").textContent = `Ganancia total: $${money(t.ganancia)} · Total a pagar: $${money(t.totalFinal)}.`;
   }else{
-    $("#verdictText").textContent = "Ingresa un margen o un PVP";
+    $("#verdictText").textContent = "Agrega velas para ver la rentabilidad";
     $("#marginNote").textContent = "";
   }
 
-  // Resumen producción
+  // Resumen producción (vela en edición)
   const matsOn = Object.entries(state.mat).filter(([k,v])=>v).map(([k])=>{
     if(k==="envase") return r.envObj.name;
     if(k==="otros")  return state.otrosNombre;
     return k.charAt(0).toUpperCase()+k.slice(1);
   });
   const tiposMecha = state.mechas.map(m=> m.tipo==="otra" ? (m.nombre||"Otra") : `Mecha ${m.tipo}`);
-  const cartLine = state.items.length
-    ? [["Velas en la cotización", `${state.items.reduce((a,it)=>a+it.qty,0)} u (${state.items.length} tipo/s)`]]
-    : [];
   $("#prodSpec").innerHTML = [
-    ...cartLine,
-    ["Vela en edición — capacidad", `${money(r.ml,0)} ml`],
+    ["Capacidad del envase", `${money(r.ml,0)} ml`],
     ["Peso total mezcla", `${money(r.pesoTotal,1)} g`],
     ["Cera requerida", `${money(r.ceraG,1)} g`],
     ["Esencia requerida", `${money(r.esenciaG,1)} g`],
@@ -858,11 +849,11 @@ function recalc(){
     ["Materiales", matsOn.join(", ")||"—"],
   ].map(([k,v])=>`<div class="row"><span class="k">${k}</span><span class="v num">${v}</span></div>`).join("");
 
-  // Barra fija
-  $("#sb_costo").textContent  = money(r.costoFinal);
-  $("#sb_pvp").textContent    = money(r.pvp);
-  $("#sb_margen").textContent = money(r.margen*100,0);
-  $("#sb_dot").style.background = (r.costoFinal>0 && r.pvp>0)?color:"var(--hair)";
+  // Barra fija (totales de la cotización)
+  $("#sb_costo").textContent  = money(t.prod);
+  $("#sb_pvp").textContent    = money(t.totalFinal);
+  $("#sb_margen").textContent = money(mp,0);
+  $("#sb_dot").style.background = hayItems?color:"var(--hair)";
 
   return r;
 }
@@ -881,6 +872,14 @@ function renderMarginPresets(){
 /* ============================================================
    CARRITO DE VELAS (cotizar varias velas en una cotización)
    ============================================================ */
+function esenciaIndex(val){
+  if(val==null) return 0;
+  const n=+val;
+  if(Number.isInteger(n) && n>=0 && n<50 && n<CFG.esencias.length) return n; // índice nuevo
+  let best=0, diff=Infinity; // valor viejo en ml → presentación más cercana
+  CFG.esencias.forEach((e,i)=>{ const d=Math.abs((e.ml||0)-n); if(d<diff){diff=d;best=i;} });
+  return best;
+}
 function candleSnapshot(){
   return {
     ml: num($("#f_ml").value), esencia: state.esencia,
@@ -892,7 +891,7 @@ function candleSnapshot(){
 function applyCandleSnapshot(s){
   if(!s) return;
   $("#f_ml").value = s.ml||""; $("#f_mo").value = s.mo||"";
-  state.esencia = s.esencia || 120;
+  state.esencia = esenciaIndex(s.esencia);
   state.mechas = JSON.parse(JSON.stringify(s.mechas || [{tipo:"6",nombre:"",costo:0}]));
   state.mat = {...(s.mat||{})};
   state.envaseSel = (s.envaseSel===undefined?0:s.envaseSel);
@@ -900,57 +899,118 @@ function applyCandleSnapshot(s){
   state.otrosNombre = s.otrosNombre||"Otros"; state.otrosCosto = s.otrosCosto||0;
   renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials();
 }
-function addItem(){
+function approveAndAdd(){
   const r=compute();
-  if(r.costoTotal<=0){ toast("Arma una vela con costo antes de agregar"); return; }
+  if(r.costoTotal<=0){ toast("Arma una vela con costo antes de aprobar"); return; }
   const qty = Math.max(1, parseInt($("#f_vela_qty").value)||1);
   const nombre = $("#f_vela_nombre").value.trim() || `Vela ${state.items.length+1}`;
-  const snap = candleSnapshot();
-  if(editingItemId!==null){
-    const it=state.items.find(i=>i.id===editingItemId);
-    if(it){ it.nombre=nombre; it.qty=qty; it.costoUnit=+r.costoTotal.toFixed(4); it.snapshot=snap; }
-    editingItemId=null;
+  const matsOn = Object.entries(state.mat).filter(([k,v])=>v).map(([k])=>{
+    if(k==="envase") return r.envObj.name;
+    if(k==="otros")  return state.otrosNombre;
+    return k.charAt(0).toUpperCase()+k.slice(1);
+  });
+  const tiposMecha = state.mechas.map(m=> m.tipo==="otra" ? (m.nombre||"Otra") : `M${m.tipo}`);
+  const item = {
+    id: editingItemId || Date.now(),
+    nombre, qty,
+    capacidad: r.ml, ceraG:+r.ceraG.toFixed(1), esenciaG:+r.esenciaG.toFixed(1),
+    esenciaLabel:`${r.presMl} ml`, mechasDesc: tiposMecha.join("+")||"—",
+    materialesDesc: matsOn.join(", ")||"—",
+    costoUnit:+r.costoTotal.toFixed(4), margen:r.margen, pvpUnit:+r.pvpUnit.toFixed(4),
+    snapshot: candleSnapshot(),
+    pricing:{ anchor:PRICE_ANCHOR, margenPct:$("#f_margen").value, pvp:$("#f_pvp").value }
+  };
+  if(editingItemId){
+    const idx=state.items.findIndex(i=>i.id===editingItemId);
+    if(idx>=0) state.items[idx]=item;
+    toast("Vela actualizada");
   }else{
-    state.items.push({id:Date.now(), nombre, qty, costoUnit:+r.costoTotal.toFixed(4), snapshot:snap});
+    state.items.push(item);
+    toast("Vela agregada a la cotización");
   }
+  resetCandleForm();
+  recalc();
+}
+function resetCandleForm(){
+  $("#f_ml").value=""; $("#f_mo").value="";
+  state.esencia=0;
+  state.mechas=[{tipo:"6",nombre:"",costo:0}];
+  state.mat={caja:false,etiqueta:false,funda:false,envase:false,otros:false};
+  state.envaseSel=0; state.envaseManualNombre=""; state.envaseManualCosto=0;
+  state.otrosNombre="Otros"; state.otrosCosto=0;
   $("#f_vela_nombre").value=""; $("#f_vela_qty").value=1;
-  $("#editingNote").textContent=""; $("#addItem").textContent="＋ Agregar vela a la cotización";
-  recalc(); toast("Vela agregada a la cotización");
+  $("#f_margen").value=CFG.margenDefault||80; $("#f_pvp").value=""; PRICE_ANCHOR="margen";
+  editingItemId=null;
+  $("#addItem").textContent="✓ Aprobar y agregar a la cotización"; $("#editingNote").textContent="";
+  renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials();
 }
 function editItem(id){
   const it=state.items.find(i=>i.id===id); if(!it)return;
   applyCandleSnapshot(it.snapshot);
   $("#f_vela_nombre").value=it.nombre; $("#f_vela_qty").value=it.qty;
+  PRICE_ANCHOR = it.pricing ? it.pricing.anchor : "margen";
+  $("#f_margen").value = it.pricing ? it.pricing.margenPct : (CFG.margenDefault||80);
+  $("#f_pvp").value = it.pricing ? it.pricing.pvp : "";
   editingItemId=id;
-  $("#editingNote").textContent=`Editando “${it.nombre}” — toca el botón para guardar los cambios.`;
   $("#addItem").textContent="✓ Guardar cambios de la vela";
+  $("#editingNote").textContent=`Editando “${it.nombre}”. Toca el botón para guardar.`;
   recalc(); window.scrollTo({top:0,behavior:"smooth"});
+}
+function duplicateItem(id){
+  const it=state.items.find(i=>i.id===id); if(!it)return;
+  const copy=JSON.parse(JSON.stringify(it)); copy.id=Date.now(); copy.nombre=`${it.nombre} (copia)`;
+  const idx=state.items.findIndex(i=>i.id===id);
+  state.items.splice(idx+1,0,copy);
+  recalc(); toast("Vela duplicada");
 }
 function removeItem(id){
   state.items=state.items.filter(i=>i.id!==id);
-  if(editingItemId===id){ editingItemId=null; $("#addItem").textContent="＋ Agregar vela a la cotización"; $("#editingNote").textContent=""; }
+  if(editingItemId===id) resetCandleForm();
   recalc();
 }
-function renderCart(r){
-  const wrap=$("#cartWrap");
-  if(!state.items.length){ wrap.style.display="none"; return; }
-  wrap.style.display="block";
-  $("#cartList").innerHTML = state.items.map(it=>`
-    <div class="hist-item" style="cursor:default">
-      <div class="meta"><b>${it.nombre}</b><small>${it.qty} × $${money(it.costoUnit)} = $${money(it.qty*it.costoUnit)}</small></div>
-      <button class="del" data-edit-item="${it.id}" aria-label="Editar" style="color:var(--gold-deep)">✎</button>
-      <button class="del" data-del-item="${it.id}" aria-label="Quitar">✕</button>
-    </div>`).join("");
-  $("#o_costo_prod").textContent = `$${money(r ? r.costoProduccion : 0)}`;
+function renderItemsTable(){
+  const empty=$("#itemsEmpty"), wrap=$("#itemsTableWrap"), totals=$("#cotiTotals");
+  $("#itemsCount").textContent = state.items.length ? `${state.items.length} vela(s)` : "";
+  if(!state.items.length){ empty.style.display="block"; wrap.style.display="none"; totals.style.display="none"; return; }
+  empty.style.display="none"; wrap.style.display="block"; totals.style.display="block";
+  $("#itemsBody").innerHTML = state.items.map((it,i)=>`
+    <tr>
+      <td class="num">${i+1}</td>
+      <td class="concept">${it.nombre}${it.qty>1?` <span class="tag">×${it.qty}</span>`:""}</td>
+      <td class="r num">${money(it.capacidad,0)} ml</td>
+      <td class="r num">${money(it.ceraG,1)} g</td>
+      <td class="r num">${money(it.esenciaG,1)} g</td>
+      <td>${it.mechasDesc}</td>
+      <td>${it.materialesDesc}</td>
+      <td class="r num">$${money(it.qty*it.costoUnit)}</td>
+      <td class="r num">$${money(it.qty*it.pvpUnit)}</td>
+      <td class="r num">${money(it.margen*100,0)}%</td>
+      <td style="white-space:nowrap">
+        <button class="del" data-edit-item="${it.id}" title="Editar" style="color:var(--gold-deep);font-size:15px">✎</button>
+        <button class="del" data-dup-item="${it.id}" title="Duplicar" style="color:var(--ink);font-size:15px">⧉</button>
+        <button class="del" data-del-item="${it.id}" title="Eliminar">✕</button>
+      </td>
+    </tr>`).join("");
   document.querySelectorAll("[data-edit-item]").forEach(b=>b.onclick=()=>editItem(+b.dataset.editItem));
+  document.querySelectorAll("[data-dup-item]").forEach(b=>b.onclick=()=>duplicateItem(+b.dataset.dupItem));
   document.querySelectorAll("[data-del-item]").forEach(b=>b.onclick=()=>removeItem(+b.dataset.delItem));
+
+  const t=computeTotals();
+  $("#cotiTotals").innerHTML = [
+    ["Total costo de producción", `$${money(t.prod)}`],
+    ["Total PVP (productos)", `$${money(t.pvp)}`, true],
+    ["Ganancia total", `$${money(t.ganancia)}`],
+    ["Margen promedio ponderado", `${money(t.margenPond*100,1)} %`],
+    ["+ Movilización (sin margen)", `$${money(t.mov)}`],
+    ["= Total final a pagar", `$${money(t.totalFinal)}`, true],
+  ].map(([k,v,strong])=>`<div class="row"><span class="k">${k}</span><span class="v num" ${strong?'style="color:var(--gold-deep)"':''}>${v}</span></div>`).join("");
 }
 
 function renderEsenciaPills(){
-  $("#esenciaPills").innerHTML = [120,250].map(v=>`
-    <div class="pill ${state.esencia===v?'active':''}" data-es="${v}">
+  $("#esenciaPills").innerHTML = CFG.esencias.map((e,i)=>`
+    <div class="pill ${state.esencia===i?'active':''}" data-es="${i}">
       <span class="dot"></span>
-      <div>Esencia ${v} ml<small>$${money(v===250?CFG.es250:CFG.es120)} por presentación</small></div>
+      <div>Esencia ${e.ml} ml<small>$${money(e.cost)} por presentación</small></div>
     </div>`).join("");
   document.querySelectorAll("#esenciaPills .pill").forEach(p=>{
     p.onclick=()=>{ state.esencia=+p.dataset.es; renderEsenciaPills(); recalc(); };
@@ -1070,15 +1130,26 @@ function fillCfgForm(){
   $("#c_pct").value=CFG.pctEsencia;
   $("#c_margen_default").value=CFG.margenDefault;
   $("#c_cera").value=CFG.cera;
-  $("#c_es120").value=CFG.es120;
-  $("#c_es250").value=CFG.es250;
   $("#c_mecha6").value=CFG.mecha6;
   $("#c_mecha10").value=CFG.mecha10;
   $("#c_caja").value=CFG.caja;
   $("#c_etiqueta").value=CFG.etiqueta;
   $("#c_funda").value=CFG.funda;
   $("#c_cinta").value=CFG.cinta;
+  renderEsenciaCfg();
   renderEnvaseCfg();
+}
+function renderEsenciaCfg(){
+  $("#esenciaCfg").innerHTML = CFG.esencias.map((e,i)=>`
+    <div class="envase-row">
+      <input class="cost" type="number" step="1" inputmode="numeric" data-esml="${i}" value="${e.ml}" placeholder="ml" style="width:90px">
+      <span style="color:var(--muted);font-size:13px">ml ·</span>
+      <input class="cost" type="number" step="0.01" inputmode="decimal" data-escost="${i}" value="${e.cost}" placeholder="$ costo" style="flex:1">
+      <button data-esdel="${i}" aria-label="Eliminar">✕</button>
+    </div>`).join("");
+  document.querySelectorAll("[data-esml]").forEach(inp=>inp.oninput=()=>{CFG.esencias[+inp.dataset.esml].ml=num(inp.value);});
+  document.querySelectorAll("[data-escost]").forEach(inp=>inp.oninput=()=>{CFG.esencias[+inp.dataset.escost].cost=num(inp.value);});
+  document.querySelectorAll("[data-esdel]").forEach(b=>b.onclick=()=>{ CFG.esencias.splice(+b.dataset.esdel,1); if(state.esencia>=CFG.esencias.length)state.esencia=0; renderEsenciaCfg(); });
 }
 function renderEnvaseCfg(){
   $("#envaseCfg").innerHTML = CFG.envases.map((e,i)=>`
@@ -1097,14 +1168,13 @@ function readCfgForm(){
   CFG.pctEsencia=num($("#c_pct").value);
   CFG.margenDefault=num($("#c_margen_default").value);
   CFG.cera=num($("#c_cera").value);
-  CFG.es120=num($("#c_es120").value);
-  CFG.es250=num($("#c_es250").value);
   CFG.mecha6=num($("#c_mecha6").value);
   CFG.mecha10=num($("#c_mecha10").value);
   CFG.caja=num($("#c_caja").value);
   CFG.etiqueta=num($("#c_etiqueta").value);
   CFG.funda=num($("#c_funda").value);
   CFG.cinta=num($("#c_cinta").value);
+  if(!CFG.esencias || CFG.esencias.length===0){ CFG.esencias=[{ml:120,cost:0}]; }
   if(CFG.envases.length===0){ CFG.envases.push({name:"Envase", cost:0}); }
 }
 async function saveCfg(){
@@ -1119,8 +1189,6 @@ async function saveCfg(){
 // Mapa de etiquetas → claves de CFG (normalizadas)
 const LABEL_MAP = [
   [["cera","cera por gramo","cera $/g"], v=>CFG.cera=v],
-  [["esencia 120","esencia presentacion 120","esencia 120 ml","presentacion 120"], v=>CFG.es120=v],
-  [["esencia 250","esencia presentacion 250","esencia 250 ml","presentacion 250"], v=>CFG.es250=v],
   [["mecha 6","mecha6"], v=>CFG.mecha6=v],
   [["mecha 10","mecha10"], v=>CFG.mecha10=v],
   [["caja"], v=>CFG.caja=v],
@@ -1134,16 +1202,19 @@ const LABEL_MAP = [
 function normalize(s){ return (s||"").toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
 
 function applyPairs(pairs){
-  let matched=0; const env=[];
+  let matched=0; const env=[]; const esn=[];
   pairs.forEach(([rawK, rawV])=>{
     const k = normalize(rawK);
     const v = parseFloat((rawV+"").replace(/[^0-9.,-]/g,"").replace(",","."));
     if(!isFinite(v)) return;
     if(k.startsWith("envase")){ env.push({name:rawK.toString().trim(), cost:v}); matched++; return; }
+    const mEs = k.match(/esencia\s*(\d+)/);
+    if(mEs){ esn.push({ml:parseInt(mEs[1],10), cost:v}); matched++; return; }
     for(const [aliases, setter] of LABEL_MAP){
       if(aliases.some(a=> k===a || k.includes(a))){ setter(v); matched++; break; }
     }
   });
+  if(esn.length){ CFG.esencias = esn; if(state.esencia>=esn.length) state.esencia=0; }
   if(env.length){ CFG.envases = env; if(state.envaseSel>=env.length) state.envaseSel=0; }
   return matched;
 }
@@ -1191,8 +1262,7 @@ function downloadTemplate(){
   const data=[
     ["Concepto","Valor"],
     ["Cera",CFG.cera],
-    ["Esencia 120 ml",CFG.es120],
-    ["Esencia 250 ml",CFG.es250],
+    ...CFG.esencias.map(e=>[`Esencia ${e.ml} ml`, e.cost]),
     ["Mecha 6",CFG.mecha6],
     ["Mecha 10",CFG.mecha10],
     ["Caja",CFG.caja],
@@ -1212,40 +1282,48 @@ function downloadTemplate(){
 /* --------- Exportar Excel (cotización + historial) --------- */
 function exportXlsx(){
   if(!window.XLSX){ toast("Librería Excel no disponible"); return; }
-  const r=recalc();
-  const xItems = state.items.length
-    ? state.items
-    : [{nombre:($("#f_vela_nombre").value.trim()||"Vela"), qty:r.curQty, costoUnit:r.costoTotal}];
-  const factor = 1 + r.margen;
+  if(!state.items.length){ toast("Agrega al menos una vela a la cotización"); return; }
+  const t=computeTotals();
   const info=[
     ["AMARÚ · Cotización"],[""],
     ["Cliente",$("#f_cliente").value],["Proyecto",$("#f_proyecto").value],
     ["Fecha",$("#f_fecha").value],["Observaciones",$("#f_obs").value],[""],
     ["VELAS DE LA COTIZACIÓN"],
-    ["Vela","Cantidad","Costo unit.","Costo total","Precio unit.","Subtotal venta"],
-    ...xItems.map(it=>[it.nombre, it.qty, +(+it.costoUnit).toFixed(2), +(it.qty*it.costoUnit).toFixed(2),
-                       +(it.costoUnit*factor).toFixed(2), +(it.qty*it.costoUnit*factor).toFixed(2)]),
+    ["Vela","Cantidad","Costo unit.","Costo total","Margen %","PVP unit.","Subtotal venta"],
+    ...state.items.map(it=>[it.nombre, it.qty, +(+it.costoUnit).toFixed(2), +(it.qty*it.costoUnit).toFixed(2),
+                       +(it.margen*100).toFixed(1), +(+it.pvpUnit).toFixed(2), +(it.qty*it.pvpUnit).toFixed(2)]),
     [""],
-    ["COSTO DE PRODUCCIÓN (todas las velas)","","",+r.costoProduccion.toFixed(2)],
-    ["Movilización","","",+r.movilizacion.toFixed(2)],
-    ["COSTO FINAL ANTES DE MARGEN","","",+r.costoFinal.toFixed(2)],[""],
-    ["Margen aplicado %",+(r.margen*100).toFixed(1)],
-    ["Utilidad",+r.ganancia.toFixed(2)],
-    ["PVP final",+r.pvp.toFixed(2)],["Multiplicador",+r.mult.toFixed(2)],
+    ["Total costo de producción","","","",+t.prod.toFixed(2)],
+    ["Total PVP (productos)","","","",+t.pvp.toFixed(2)],
+    ["Ganancia total","","","",+t.ganancia.toFixed(2)],
+    ["Margen promedio ponderado %","","","",+(t.margenPond*100).toFixed(1)],
+    ["Movilización (sin margen)","","","",+t.mov.toFixed(2)],
+    ["TOTAL FINAL A PAGAR","","","",+t.totalFinal.toFixed(2)],
   ];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(info), "Cotización");
-  const h=[["Fecha","Cliente","Proyecto","Costo Producción","Movilización","Costo Final","PVP","Margen %","Utilidad","Estado"],
-    ...HIST.map(x=>[x.fecha,x.cliente,x.proyecto,(x.costoProd??""),(x.movilizacion??""),x.costo,x.pvp,(x.margen*100).toFixed(1),x.ganancia,x.estado||"Aprobada"])];
+  const h=[["Fecha","Cliente","Proyecto","Producto","Cantidad","Costo unit.","Margen %","PVP unit.","Subtotal productos","Movilización","Total final","Estado"],
+    ...HIST.map(x=>[x.fecha,x.cliente,x.proyecto,(x.producto??""),(x.cantidad??""),(x.costoUnit??""),(x.margen*100).toFixed(1),(x.pvpUnit??""),(x.subtotal??""),(x.movilizacion??""),(x.total??x.pvp??""),x.estado||"Aprobada"])];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(h), "Historial Cotizaciones");
   const cli=($("#f_cliente").value||"cotizacion").replace(/[^\w]+/g,"_");
   XLSX.writeFile(wb, `AMARU_${cli}.xlsx`);
 }
 
-/* --------- Exportar PDF --------- */
-function exportPdf(){
+/* --------- Exportar PDF (guarda en la hoja ANTES de generar) --------- */
+async function exportPdf(){
   const J = window.jspdf && window.jspdf.jsPDF;
   if(!J){ toast("Librería PDF no disponible · usa Imprimir"); return; }
+
+  // 1) Guardar la cotización primero (regla: el PDF no es una acción aislada)
+  const {q, cloud} = await guardarCotizacion();
+  if(!q) return; // sin costo
+  if(GAS_URL && cloud===false){
+    toast("❌ No se pudo guardar en la hoja. Revisa la conexión. No se generó el PDF.");
+    return; // no asumir que quedó registrada
+  }
+  if(!GAS_URL){ toast("⚠ Sin hoja conectada: el PDF se descarga, pero no quedó registrado en Sheets"); }
+
+  // 2) Generar el PDF
   const r=recalc();
   const doc=new J({unit:"pt",format:"a4"});
   const W=doc.internal.pageSize.getWidth();
@@ -1263,27 +1341,26 @@ function exportPdf(){
   doc.text(`Cliente: ${cli}`, 40, 100);
   doc.text(`Proyecto: ${pro}`, 40, 114);
   doc.text(`Fecha: ${fch}`, W-40, 100, {align:"right"});
-  doc.text(`Fecha: ${fch}`, W-40, 100, {align:"right"});
 
-  // Velas con precio al cliente (precio = costo × (1 + margen))
-  const pdfItems = state.items.length
-    ? state.items
-    : [{nombre:($("#f_vela_nombre").value.trim()||"Vela"), qty:r.curQty, costoUnit:r.costoTotal}];
-  const factor = 1 + r.margen;
-  const body = pdfItems.map(it=>{
-    const pu = it.costoUnit * factor;
-    return [it.nombre, `${it.qty}`, `$${money(pu)}`, `$${money(pu*it.qty)}`];
-  });
-  if(r.movilizacion>0){ body.push(["Movilización / envío","","",`$${money(r.movilizacion*factor)}`]); }
+  // Cada vela con su propio PVP unitario. La movilización va aparte, sin margen.
+  const t = computeTotals();
+  const body = state.items.map(it=>[
+    it.nombre + (it.qty>1?` (×${it.qty})`:""),
+    `${it.qty}`, `$${money(it.pvpUnit)}`, `$${money(it.qty*it.pvpUnit)}`
+  ]);
 
   doc.autoTable({
     startY:128,
     head:[["Detalle","Cant.","Precio unit.","Subtotal"]],
     body: body,
-    foot:[["TOTAL","","",`$${money(r.pvp)}`]],
+    foot:[
+      ["Subtotal productos","","",`$${money(t.pvp)}`],
+      ["Movilización / envío","","",`$${money(t.mov)}`],
+      ["TOTAL","","",`$${money(t.totalFinal)}`],
+    ],
     theme:"plain",
     headStyles:{textColor:muted,fontSize:9,fontStyle:"bold",lineWidth:{bottom:0.5},lineColor:gold},
-    footStyles:{textColor:ink,fontStyle:"bold",fontSize:13,lineWidth:{top:0.5},lineColor:gold},
+    footStyles:{textColor:ink,fontStyle:"bold",fontSize:11,lineWidth:{top:0.5},lineColor:gold},
     bodyStyles:{textColor:ink,fontSize:10.5},
     columnStyles:{1:{halign:"right"},2:{halign:"right"},3:{halign:"right"}},
     margin:{left:40,right:40}
@@ -1318,14 +1395,20 @@ function buildDetalle(q){
   return `${s.ml||0}ml · esencia ${s.esencia}ml · mechas ${mech||"-"} · ${mats||"sin extras"}${mov}`;
 }
 async function cloudPush(q){
-  if(!GAS_URL) return;
+  if(!GAS_URL) return null; // sin conector configurado
   try{
-    await fetch(GAS_URL,{ method:"POST",
+    const res = await fetch(GAS_URL,{ method:"POST",
       headers:{"Content-Type":"text/plain;charset=utf-8"}, // texto plano: evita el preflight CORS
-      body:JSON.stringify({ id:q.id, fecha:q.fecha, cliente:q.cliente, proyecto:q.proyecto,
-        estado:q.estado||"Aprobada", ml:q.ml, costo:q.costo, pvp:q.pvp,
-        margen:+(q.margen*100).toFixed(1), ganancia:q.ganancia, detalle:buildDetalle(q) }) });
-  }catch(e){ /* sin conexión: queda guardada localmente igual */ }
+      body:JSON.stringify({
+        id:q.id, fecha:q.fecha, cliente:q.cliente, proyecto:q.proyecto,
+        producto:q.producto, cantidad:q.cantidad,
+        costoUnit:q.costoUnit, margen:+(q.margen*100).toFixed(1), pvpUnit:q.pvpUnit,
+        subtotal:q.subtotal, movilizacion:q.movilizacion, total:q.total,
+        estado:q.estado||"Aprobada", referencia:q.referencia||""
+      }) });
+    try{ const d=await res.json(); return !!(d && d.ok); }
+    catch(e){ return !!res.ok; }   // si la respuesta llegó, la fila se escribió
+  }catch(e){ return false; }       // error de red → no se guardó
 }
 async function cloudDelete(id){
   if(!GAS_URL) return;
@@ -1340,7 +1423,9 @@ async function cloudPull(){
       const local={}; HIST.forEach(h=>local[h.id]=h); // conservar snapshots locales
       HIST=data.rows.filter(r=>r.id).map(r=>({
         id:r.id, fecha:r.fecha, cliente:r.cliente, proyecto:r.proyecto, estado:r.estado||"Aprobada",
-        ml:+r.ml||0, costo:+r.costo||0, pvp:+r.pvp||0, margen:(+r.margen||0)/100, ganancia:+r.ganancia||0,
+        producto:r.producto, cantidad:r.cantidad,
+        subtotal:+r.subtotal||0, movilizacion:+r.movilizacion||0,
+        total:+r.total||0, pvp:+r.total||0, margen:(+r.margen||0)/100, ganancia:0,
         snapshot: local[r.id]?local[r.id].snapshot:null
       }));
       await Store.set("amaru_hist", HIST);
@@ -1350,40 +1435,60 @@ async function cloudPull(){
   return false;
 }
 
-/* ============================================================
-   HISTORIAL
-   ============================================================ */
-async function saveQuote(){
-  const r=recalc();
-  if(r.costoFinal<=0){ toast("Calcula un costo antes de guardar"); return; }
-  const items = state.items.length
-    ? state.items.map(it=>({nombre:it.nombre, qty:it.qty, costoUnit:it.costoUnit, snapshot:it.snapshot}))
-    : [{nombre:($("#f_vela_nombre").value.trim()||"Vela"), qty:r.curQty, costoUnit:+r.costoTotal.toFixed(4), snapshot:candleSnapshot()}];
-  const q={
-    id:Date.now(),
+let currentQuoteId = null; // id de la cotización de la sesión (para no duplicar al guardar y al exportar PDF)
+
+function buildQuoteRecord(){
+  const t=computeTotals();
+  const producto = state.items.map(it=>`${it.qty}× ${it.nombre}`).join(", ");
+  const cantidadTotal = state.items.reduce((a,it)=>a+it.qty,0);
+  const unico = state.items.length===1;
+  const costoUnit = unico ? +state.items[0].costoUnit.toFixed(2) : "";
+  const pvpUnit   = unico ? +state.items[0].pvpUnit.toFixed(2) : "";
+  if(!currentQuoteId) currentQuoteId = Date.now();
+  return {
+    id: currentQuoteId,
     fecha:$("#f_fecha").value || new Date().toISOString().slice(0,10),
     cliente:$("#f_cliente").value||"—",
     proyecto:$("#f_proyecto").value||"—",
     estado:"Aprobada",
-    ml:r.ml, costo:+r.costoFinal.toFixed(2), costoProd:+r.costoProduccion.toFixed(2),
-    movilizacion:+r.movilizacion.toFixed(2), pvp:+r.pvp.toFixed(2),
-    margen:r.margen, ganancia:+r.ganancia.toFixed(2),
-    items: items,
+    producto, cantidad:cantidadTotal,
+    costoUnit, pvpUnit,
+    margen: t.margenPond,
+    costoProd:+t.prod.toFixed(2), subtotal:+t.pvp.toFixed(2),
+    movilizacion:+t.mov.toFixed(2), total:+t.totalFinal.toFixed(2), pvp:+t.totalFinal.toFixed(2),
+    ganancia:+t.ganancia.toFixed(2),
+    referencia:`AMARU_${($("#f_cliente").value||"cotizacion").replace(/[^\w]+/g,"_")}.pdf`,
+    items: JSON.parse(JSON.stringify(state.items)),
     snapshot:{ items: JSON.parse(JSON.stringify(state.items)),
-               ml:r.ml, esencia:state.esencia, mechas:state.mechas, mat:state.mat,
-               envaseSel:state.envaseSel, envaseManualNombre:state.envaseManualNombre, envaseManualCosto:state.envaseManualCosto,
-               otrosNombre:state.otrosNombre, otrosCosto:state.otrosCosto,
-               mo:num($("#f_mo").value), mov:num($("#f_mov").value),
-               anchor:PRICE_ANCHOR, margenPct:$("#f_margen").value, pvp:r.pvp,
+               mov:num($("#f_mov").value),
                cliente:$("#f_cliente").value, proyecto:$("#f_proyecto").value,
                fecha:$("#f_fecha").value, obs:$("#f_obs").value }
   };
+}
+
+// Guarda local + nube. Devuelve {q, cloud} donde cloud = true/false/null(sin conector)
+async function guardarCotizacion(){
+  if(!state.items.length){ toast("Agrega al menos una vela a la cotización"); return {q:null, cloud:null}; }
+  const q=buildQuoteRecord();
+  // upsert local por id
+  HIST = HIST.filter(x=>String(x.id)!==String(q.id));
   HIST.unshift(q);
   await Store.set("amaru_hist", HIST);
   renderHist();
+  const cloud = await cloudPush(q);
+  return {q, cloud};
+}
+
+/* ============================================================
+   HISTORIAL
+   ============================================================ */
+async function saveQuote(){
+  const {q, cloud} = await guardarCotizacion();
+  if(!q) return;
   $("#sec-historial").classList.add("open");
-  cloudPush(q);
-  toast(GAS_URL ? "Cotización guardada y sincronizada" : "Cotización guardada");
+  if(cloud===null) toast("Guardada en este dispositivo (sin hoja conectada)");
+  else if(cloud)   toast("✓ Guardada y sincronizada con la hoja");
+  else             toast("⚠ Guardada local, pero NO se pudo escribir en la hoja");
 }
 function renderHist(){
   $("#histCount").textContent = HIST.length? `${HIST.length} guardada(s)` : "";
@@ -1391,8 +1496,8 @@ function renderHist(){
   $("#histList").innerHTML=HIST.map(x=>{
     let c="var(--low)"; if(x.margen*100>=70)c="var(--ok)"; else if(x.margen*100>=40)c="var(--mid)";
     return `<div class="hist-item" data-load="${x.id}">
-      <div class="meta"><b>${x.cliente} · ${x.proyecto}</b><small>${x.fecha} · ${money(x.ml,0)} ml · costo $${money(x.costo)} · ${x.estado||'Aprobada'}</small></div>
-      <div class="nums"><div class="m" style="color:${c}">${money(x.margen*100,0)}%</div><small>PVP $${money(x.pvp)}</small></div>
+      <div class="meta"><b>${x.cliente} · ${x.proyecto}</b><small>${x.fecha} · ${x.producto||"—"} · ${x.estado||'Aprobada'}</small></div>
+      <div class="nums"><div class="m" style="color:${c}">${money(x.margen*100,0)}%</div><small>Total $${money(x.total!=null?x.total:x.pvp)}</small></div>
       <button class="del" data-del="${x.id}" aria-label="Eliminar">✕</button>
     </div>`;
   }).join("");
@@ -1402,19 +1507,13 @@ function renderHist(){
 function loadQuote(id){
   const x=HIST.find(h=>String(h.id)===String(id)); if(!x)return; const s=x.snapshot;
   if(!s){ toast("Esta cotización viene de la hoja compartida (sin detalle para recargar)"); return; }
+  currentQuoteId = x.id;   // editar esta cotización actualiza su misma fila
   $("#f_cliente").value=s.cliente||""; $("#f_proyecto").value=s.proyecto||"";
   $("#f_fecha").value=s.fecha||""; $("#f_obs").value=s.obs||"";
-  $("#f_ml").value=s.ml||""; $("#f_mo").value=s.mo||""; $("#f_mov").value=s.mov||"";
-  PRICE_ANCHOR = s.anchor || "margen";
-  $("#f_margen").value = s.margenPct || "";
-  $("#f_pvp").value = s.pvp || "";
-  state.esencia=s.esencia; state.mechas=s.mechas; state.mat=s.mat;
-  state.envaseSel=(s.envaseSel===undefined?0:s.envaseSel); state.envaseManualNombre=s.envaseManualNombre||""; state.envaseManualCosto=s.envaseManualCosto||0;
-  state.otrosNombre=s.otrosNombre||"Otros"; state.otrosCosto=s.otrosCosto||0;
+  $("#f_mov").value=s.mov||"";
   state.items = Array.isArray(s.items) ? JSON.parse(JSON.stringify(s.items)) : [];
-  editingItemId=null; $("#addItem").textContent="＋ Agregar vela a la cotización"; $("#editingNote").textContent="";
-  $("#f_vela_nombre").value=""; $("#f_vela_qty").value=1;
-  renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials(); recalc();
+  resetCandleForm();   // el formulario de vela queda limpio para agregar otra
+  recalc();
   window.scrollTo({top:0,behavior:"smooth"}); toast("Cotización cargada");
 }
 
@@ -1438,7 +1537,7 @@ async function init(){
   ["f_ml","f_mo","f_mov","f_vela_qty"].forEach(id=>$("#"+id).addEventListener("input",recalc));
   $("#f_margen").addEventListener("input",()=>{ PRICE_ANCHOR="margen"; recalc(); });
   $("#f_pvp").addEventListener("input",()=>{ PRICE_ANCHOR="pvp"; recalc(); });
-  $("#addItem").onclick=addItem;
+  $("#addItem").onclick=approveAndAdd;
 
   // historial colapsable
   $("#sec-historial .sec-head").onclick=()=>$("#sec-historial").classList.toggle("open");
@@ -1450,9 +1549,10 @@ async function init(){
   $("#openCfg").onclick=()=>{ fillCfgForm(); $("#cfgModal").classList.add("open"); };
   $("#closeCfg").onclick=async()=>{ await saveCfg(); $("#cfgModal").classList.remove("open"); toast("Costos guardados"); };
   $("#cfgModal").onclick=e=>{ if(e.target.id==="cfgModal"){ $("#closeCfg").click(); } };
-  ["c_densidad","c_dens_esencia","c_pct","c_margen_default","c_cera","c_es120","c_es250","c_mecha6","c_mecha10","c_caja","c_etiqueta","c_funda","c_cinta"]
+  ["c_densidad","c_dens_esencia","c_pct","c_margen_default","c_cera","c_mecha6","c_mecha10","c_caja","c_etiqueta","c_funda","c_cinta"]
     .forEach(id=>$("#"+id).addEventListener("input",()=>{ readCfgForm(); renderEsenciaPills(); renderMechaList(); renderMaterials(); recalc(); }));
   $("#addEnvase").onclick=()=>{ CFG.envases.push({name:"Nuevo envase", cost:0}); renderEnvaseCfg(); };
+  $("#addEsencia").onclick=()=>{ CFG.esencias.push({ml:0, cost:0}); renderEsenciaCfg(); };
   $("#resetCfg").onclick=async()=>{ CFG=JSON.parse(JSON.stringify(DEFAULT_CFG)); await Store.set("amaru_cfg",CFG); fillCfgForm(); renderEsenciaPills(); renderMechaList(); renderMaterials(); recalc(); toast("Valores restablecidos"); };
 
   // import/export
