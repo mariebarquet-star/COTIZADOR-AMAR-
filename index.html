@@ -1,0 +1,1583 @@
+<!--
+  AMARÚ · Cotizador de Refills y Rentabilidad
+  -------------------------------------------------------------
+  App de una sola página (HTML + CSS + JS), mobile-first.
+  - Costos editables en la app y persistidos (window.storage con fallback en memoria).
+  - Importación opcional desde Excel (SheetJS) y desde Google Sheets (CSV publicado).
+  - Cálculos en tiempo real, sin recarga.
+  - Exportación a PDF (jsPDF) y Excel (SheetJS) + impresión.
+
+  PRECISIÓN: todas las fórmulas de cera, esencia, costos y rentabilidad
+  están concentradas en la función recalc() y documentadas ahí.
+-->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>AMARÚ · Cotizador</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<!-- Librerías para exportación (con fallback silencioso si el entorno las bloquea) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+  :root{
+    --bg:#FAF6EF;            /* crema cálido */
+    --surface:#FFFFFF;
+    --surface-2:#FBF7F0;
+    --ink:#1C1815;           /* negro cálido */
+    --muted:#8A8175;
+    --hair:#E9E1D3;          /* hairlines */
+    --beige:#EFE7D8;
+    --gold:#B8924A;          /* oro tenue */
+    --gold-soft:#CBA968;
+    --gold-deep:#8C6F37;
+    --ok:#5B7A52;            /* sage >70% */
+    --mid:#C9913E;           /* ámbar 40-70% */
+    --low:#B5524A;           /* terracota <40% */
+    --radius:16px;
+    --radius-sm:11px;
+    --shadow:0 1px 2px rgba(28,24,21,.04), 0 8px 24px rgba(28,24,21,.06);
+    --shadow-soft:0 1px 2px rgba(28,24,21,.04);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:15px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:96px; /* espacio para barra fija */
+  }
+  .serif{font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+  /* ---------- Header ---------- */
+  header.app{
+    position:sticky;top:0;z-index:30;
+    background:linear-gradient(180deg, rgba(250,246,239,.96), rgba(250,246,239,.86));
+    backdrop-filter:saturate(140%) blur(10px);
+    border-bottom:1px solid var(--hair);
+    padding:14px 18px;
+  }
+  .brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:760px;margin:0 auto}
+  .wordmark{display:flex;align-items:center;gap:10px}
+  .flame{
+    width:13px;height:20px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;
+    background:radial-gradient(ellipse at 50% 70%, #F4D58B 0%, var(--gold) 55%, var(--gold-deep) 100%);
+    box-shadow:0 0 14px rgba(184,146,74,.55);
+    transform:rotate(-2deg);
+    flex:0 0 auto;
+  }
+  .wordmark h1{margin:0;font-size:27px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+  .wordmark .sub{font-size:10.5px;letter-spacing:.34em;color:var(--muted);text-transform:uppercase;margin-top:-2px}
+  .hbtn{
+    appearance:none;border:1px solid var(--hair);background:var(--surface);color:var(--ink);
+    font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:999px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;transition:.15s;
+  }
+  .hbtn:hover{border-color:var(--gold-soft)}
+  .hbtn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+  main{max-width:760px;margin:0 auto;padding:18px 16px 8px}
+
+  /* ---------- Banner ---------- */
+  .banner{
+    background:linear-gradient(135deg,#FFF8EC,#FBEFD9);
+    border:1px solid #EAD9B6;border-radius:var(--radius);
+    padding:13px 15px;margin-bottom:16px;font-size:13px;color:#6e5a32;
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .banner b{color:var(--gold-deep)}
+  .banner .x{margin-left:auto;cursor:pointer;color:#a98f5a;font-weight:700;background:none;border:none;font-size:15px}
+
+  /* ---------- Cards / secciones ---------- */
+  .card{
+    background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius);
+    box-shadow:var(--shadow-soft);margin-bottom:14px;overflow:hidden;
+  }
+  .card > .body{padding:16px}
+  .sec-head{
+    display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:default;
+    border-bottom:1px solid transparent;
+  }
+  .sec-head .idx{
+    font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.05em;
+    border:1px solid var(--hair);border-radius:7px;padding:3px 7px;min-width:30px;text-align:center;
+  }
+  .sec-head h2{margin:0;font-size:15px;font-weight:700;letter-spacing:.01em}
+  .sec-head .hint{font-size:12px;color:var(--muted);font-weight:500}
+  .collapsible .sec-head{cursor:pointer}
+  .collapsible .sec-head::after{
+    content:"";margin-left:auto;width:8px;height:8px;border-right:2px solid var(--muted);
+    border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:.2s;flex:0 0 auto;
+  }
+  .collapsible.open .sec-head::after{transform:rotate(-135deg)}
+  .collapsible .body{display:none}
+  .collapsible.open .body{display:block}
+
+  /* ---------- Inputs ---------- */
+  label.field{display:block;margin-bottom:13px}
+  label.field:last-child{margin-bottom:0}
+  .field > span{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;letter-spacing:.01em}
+  .field .unit{color:var(--gold-deep);font-weight:600}
+  input[type=text],input[type=number],input[type=date],select,textarea{
+    width:100%;font:inherit;font-size:15px;color:var(--ink);
+    background:var(--surface-2);border:1px solid var(--hair);border-radius:var(--radius-sm);
+    padding:11px 12px;transition:.15s;
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold-soft);background:#fff;box-shadow:0 0 0 3px rgba(184,146,74,.12)}
+  textarea{resize:vertical;min-height:60px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:480px){.grid3{grid-template-columns:1fr 1fr}}
+
+  /* radios tipo pill */
+  .pills{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{
+    flex:1;min-width:120px;border:1px solid var(--hair);background:var(--surface-2);
+    border-radius:var(--radius-sm);padding:11px 12px;cursor:pointer;font-size:14px;font-weight:600;
+    display:flex;align-items:center;gap:9px;transition:.15s;
+  }
+  .pill:hover{border-color:var(--gold-soft)}
+  .pill.active{border-color:var(--gold);background:#fff;box-shadow:0 0 0 2px rgba(184,146,74,.14) inset}
+  .pill .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--hair);flex:0 0 auto}
+  .pill.active .dot{border-color:var(--gold);background:var(--gold)}
+  .pill small{display:block;font-weight:500;color:var(--muted);font-size:11px}
+
+  /* selector de cantidad */
+  .qty{display:flex;gap:7px}
+  .qty button{
+    flex:1;border:1px solid var(--hair);background:var(--surface-2);border-radius:10px;
+    padding:10px 0;font:inherit;font-weight:700;font-size:15px;cursor:pointer;color:var(--ink);transition:.15s;
+  }
+  .qty button.active{border-color:var(--gold);background:#fff;box-shadow:0 0 0 2px rgba(184,146,74,.14) inset;color:var(--gold-deep)}
+
+  /* toggles */
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--hair)}
+  .toggle-row:last-child{border-bottom:none}
+  .toggle-row .tl{display:flex;flex-direction:column}
+  .toggle-row .tl b{font-size:14.5px;font-weight:600}
+  .toggle-row .tl small{font-size:12px;color:var(--muted)}
+  .toggle-row .right{display:flex;align-items:center;gap:12px}
+  .sw{position:relative;width:42px;height:24px;flex:0 0 auto}
+  .sw input{opacity:0;width:0;height:0;position:absolute}
+  .sw .track{position:absolute;inset:0;background:var(--hair);border-radius:999px;transition:.18s;cursor:pointer}
+  .sw .track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.18s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .sw input:checked + .track{background:var(--gold)}
+  .sw input:checked + .track::after{transform:translateX(18px)}
+  .sw input:focus-visible + .track{outline:2px solid var(--gold);outline-offset:2px}
+  .mini-cost{font-size:13.5px;font-weight:600;color:var(--gold-deep);min-width:64px;text-align:right}
+  .mini-cost.off{color:var(--muted);opacity:.55}
+
+  /* lecturas calculadas (refill) */
+  .readouts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  @media(max-width:480px){.readouts{grid-template-columns:1fr 1fr}}
+  .ro{background:var(--surface-2);border:1px solid var(--hair);border-radius:var(--radius-sm);padding:12px}
+  .ro .k{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+  .ro .v{font-size:21px;font-weight:600;margin-top:3px}
+  .ro .v small{font-size:12px;color:var(--muted);font-weight:600;margin-left:2px}
+
+  /* ---------- Tabla desglose ---------- */
+  .breakdown{width:100%;border-collapse:collapse;font-size:13.5px}
+  .breakdown th{
+    text-align:left;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);
+    font-weight:600;padding:6px 8px;border-bottom:1px solid var(--hair);
+  }
+  .breakdown th.r,.breakdown td.r{text-align:right}
+  .breakdown td{padding:9px 8px;border-bottom:1px solid var(--hair)}
+  .breakdown tr.zero{color:var(--muted);opacity:.45}
+  .breakdown td.concept{font-weight:600}
+  .breakdown td .tag{font-size:10.5px;color:var(--muted);font-weight:500;display:block}
+  .breakdown tfoot td{border-bottom:none;padding-top:12px}
+
+  .total-block{
+    margin-top:14px;background:linear-gradient(135deg,#211C16,#322817);color:#F7EFDD;
+    border-radius:var(--radius);padding:18px 20px;display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+    box-shadow:0 10px 28px rgba(33,28,22,.22);
+  }
+  .total-block .lbl{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#C9B58A}
+  .total-block .amt{font-size:38px;font-weight:600;line-height:1}
+  .total-block .amt .c{font-size:20px;color:#C9B58A;margin-right:3px}
+
+  /* ---------- Rentabilidad ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:480px){.kpis{grid-template-columns:1fr;}}
+  .kpi{border:1px solid var(--hair);border-radius:var(--radius-sm);padding:14px;text-align:center;background:var(--surface-2)}
+  .kpi .k{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+  .kpi .v{font-size:30px;font-weight:600;margin-top:4px;line-height:1}
+  .kpi .v small{font-size:14px;color:var(--muted)}
+  .meter{height:10px;border-radius:999px;background:var(--hair);overflow:hidden;margin-top:14px;position:relative}
+  .meter > i{display:block;height:100%;width:0;border-radius:999px;transition:width .4s ease, background .4s ease}
+  .verdict{display:flex;align-items:center;gap:10px;margin-top:13px;font-weight:600;font-size:14px}
+  .verdict .dot{width:13px;height:13px;border-radius:50%;flex:0 0 auto}
+
+  /* calculadora inversa */
+  .inverse-out{
+    margin-top:6px;background:linear-gradient(135deg,#FFF8EC,#F8EBCF);border:1px solid #EAD9B6;
+    border-radius:var(--radius);padding:16px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  }
+  .inverse-out .lbl{font-size:12px;color:var(--gold-deep);font-weight:600}
+  .inverse-out .lbl small{display:block;color:#9a814f;font-weight:500;margin-top:2px}
+  .inverse-out .amt{font-size:30px;font-weight:600;color:var(--gold-deep)}
+  .inverse-out .amt .c{font-size:17px;margin-right:2px}
+
+  /* resumen producción */
+  .spec{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  @media(max-width:480px){.spec{grid-template-columns:1fr}}
+  .spec .row{display:flex;justify-content:space-between;gap:12px;padding:10px 2px;border-bottom:1px solid var(--hair);font-size:13.5px}
+  .spec .row .k{color:var(--muted)}
+  .spec .row .v{font-weight:600;text-align:right}
+
+  /* historial */
+  .hist-empty{color:var(--muted);font-size:13.5px;text-align:center;padding:18px 0}
+  .hist-item{border:1px solid var(--hair);border-radius:var(--radius-sm);padding:12px 13px;margin-bottom:10px;display:flex;gap:12px;align-items:center;cursor:pointer;transition:.15s}
+  .hist-item:hover{border-color:var(--gold-soft);background:var(--surface-2)}
+  .hist-item .meta{flex:1;min-width:0}
+  .hist-item .meta b{font-size:14px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hist-item .meta small{font-size:12px;color:var(--muted)}
+  .hist-item .nums{text-align:right;font-size:12.5px}
+  .hist-item .nums .m{font-weight:700}
+  .hist-item .del{background:none;border:none;color:#c0a }
+  .hist-item .del{color:var(--low);font-size:18px;cursor:pointer;background:none;border:none;padding:4px 6px;border-radius:8px}
+  .hist-item .del:hover{background:#fbeeec}
+
+  /* botones de acción */
+  .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media(max-width:480px){.actions{grid-template-columns:1fr}}
+  .btn{
+    appearance:none;border:1px solid var(--hair);background:var(--surface);color:var(--ink);
+    font:inherit;font-weight:600;font-size:14px;padding:13px;border-radius:var(--radius-sm);cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.15s;
+  }
+  .btn:hover{border-color:var(--gold-soft)}
+  .btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .btn.primary{background:var(--ink);color:#F7EFDD;border-color:var(--ink)}
+  .btn.primary:hover{background:#000}
+  .btn.gold{background:var(--gold);color:#fff;border-color:var(--gold)}
+  .btn.gold:hover{background:var(--gold-deep)}
+  .btn.block{width:100%}
+
+  /* barra fija inferior */
+  .stickybar{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:linear-gradient(180deg, rgba(255,255,255,.7), rgba(255,255,255,.97));
+    backdrop-filter:saturate(140%) blur(10px);
+    border-top:1px solid var(--hair);padding:10px 16px;
+    box-shadow:0 -6px 20px rgba(28,24,21,.05);
+  }
+  .stickybar .inner{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:14px}
+  .sb-item{display:flex;flex-direction:column;line-height:1.1}
+  .sb-item .k{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .sb-item .v{font-size:18px;font-weight:700}
+  .sb-item.cost .v{}
+  .sb-verdict{margin-left:auto;display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+  .sb-verdict .dot{width:12px;height:12px;border-radius:50%}
+
+  /* modal config */
+  .modal-bg{position:fixed;inset:0;background:rgba(28,24,21,.45);z-index:60;display:none;align-items:flex-end;justify-content:center}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--bg);width:100%;max-width:760px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:0}
+  @media(min-width:760px){.modal-bg{align-items:center}.modal{border-radius:20px;max-height:88vh}}
+  .modal .mhead{position:sticky;top:0;background:var(--bg);padding:16px 18px;border-bottom:1px solid var(--hair);display:flex;align-items:center;justify-content:between;z-index:2}
+  .modal .mhead h2{margin:0;font-size:16px;font-weight:700;flex:1}
+  .modal .mbody{padding:16px 18px 24px}
+  .cfg-group{margin-bottom:18px}
+  .cfg-group > h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-deep);margin:0 0 10px;font-weight:700}
+  .envase-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .envase-row input.name{flex:1}
+  .envase-row input.cost{width:110px}
+  .envase-row button{border:1px solid var(--hair);background:#fff;border-radius:9px;width:38px;height:38px;font-size:16px;cursor:pointer;color:var(--low)}
+  .smallnote{font-size:12px;color:var(--muted);margin-top:6px}
+  .importbox{border:1px dashed #d8c79f;background:#fffdf7;border-radius:var(--radius-sm);padding:14px;margin-bottom:14px}
+  .toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:var(--ink);color:#F7EFDD;padding:11px 18px;border-radius:999px;font-size:13.5px;font-weight:600;z-index:80;opacity:0;pointer-events:none;transition:.25s}
+  .toast.show{opacity:1}
+
+  @media print{
+    header.app,.stickybar,.actions,.banner,.collapsible#sec-historial,.no-print{display:none !important}
+    body{padding:0;background:#fff}
+    .card{box-shadow:none;break-inside:avoid}
+  }
+</style>
+
+<header class="app">
+  <div class="brandrow">
+    <div class="wordmark">
+      <span class="flame" aria-hidden="true"></span>
+      <div>
+        <h1 class="serif">Amarú</h1>
+        <div class="sub">Cotizador · Velas</div>
+      </div>
+    </div>
+    <button class="hbtn" id="openCfg" title="Editar costos base">⚙︎ Costos</button>
+  </div>
+</header>
+
+<main>
+  <div class="banner" id="banner">
+    <span>🕯️</span>
+    <div>
+      <b>Configura tus costos.</b> Los valores cargados son de ejemplo. Ábrelos en <b>⚙︎ Costos</b> para editarlos a mano,
+      importar tu Excel o conectar una hoja de Google Sheets. Tus costos y cotizaciones se guardan en este dispositivo.
+    </div>
+    <button class="x" id="closeBanner" aria-label="Cerrar aviso">✕</button>
+  </div>
+
+  <!-- 1 · Cliente -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">01</span><h2>Información del cliente</h2></div>
+    <div class="body">
+      <div class="grid2">
+        <label class="field"><span>Cliente</span><input id="f_cliente" type="text" placeholder="Nombre del cliente" /></label>
+        <label class="field"><span>Proyecto</span><input id="f_proyecto" type="text" placeholder="Nombre del proyecto" /></label>
+      </div>
+      <label class="field"><span>Fecha</span><input id="f_fecha" type="date" /></label>
+      <label class="field"><span>Observaciones <small style="font-weight:400">(opcional)</small></span><textarea id="f_obs" placeholder="Notas para la cotización"></textarea></label>
+    </div>
+  </section>
+
+  <!-- 2 · Refill -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">02</span><h2>Cálculo del refill</h2><span class="hint">densidad · % esencia configurables</span></div>
+    <div class="body">
+      <label class="field"><span>Capacidad del envase <span class="unit">(ml)</span></span>
+        <input id="f_ml" type="number" min="0" step="1" inputmode="decimal" placeholder="500" />
+      </label>
+      <div class="readouts">
+        <div class="ro"><div class="k">Peso total mezcla</div><div class="v num"><span id="o_peso">0</span><small>g</small></div></div>
+        <div class="ro"><div class="k">Esencia requerida</div><div class="v num"><span id="o_esencia_g">0</span><small>g</small></div></div>
+        <div class="ro"><div class="k">Cera requerida</div><div class="v num"><span id="o_cera_g">0</span><small>g</small></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · Tipo de esencia -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">03</span><h2>Tipo de esencia</h2></div>
+    <div class="body">
+      <div class="pills" id="esenciaPills"></div>
+    </div>
+  </section>
+
+  <!-- 4 · Mechas -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">04</span><h2>Mechas</h2></div>
+    <div class="body">
+      <label class="field"><span>Cantidad de mechas</span></label>
+      <div class="qty" id="mechaQty"></div>
+      <div id="mechaList" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <!-- 5 · Materiales adicionales -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">05</span><h2>Materiales adicionales</h2></div>
+    <div class="body" id="materialsBody"></div>
+  </section>
+
+  <!-- 6 · Cinta (auto) -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">06</span><h2>Cinta doble faz</h2><span class="hint">según nº de mechas</span></div>
+    <div class="body">
+      <div class="toggle-row" style="border:none;padding:0">
+        <div class="tl"><b>Cinta doble faz</b><small id="cintaDetail">— mechas × $0.00</small></div>
+        <div class="right"><span class="mini-cost" id="cintaTotal">$0.00</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · Mano de obra y movilización -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">07</span><h2>Mano de obra y movilización</h2><span class="hint">opcional</span></div>
+    <div class="body">
+      <div class="grid2">
+        <label class="field" style="margin:0"><span>Mano de obra <span class="unit">($)</span></span>
+          <input id="f_mo" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </label>
+        <label class="field" style="margin:0"><span>Movilización <span class="unit">($)</span></span>
+          <input id="f_mov" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </label>
+      </div>
+      <div class="smallnote" style="margin-top:8px">La mano de obra entra en el costo de producción; la movilización se suma aparte, antes del margen.</div>
+    </div>
+  </section>
+
+  <!-- 8 · Desglose de la vela -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">08</span><h2>Desglose de la vela</h2><span class="hint">costo de la vela actual</span></div>
+    <div class="body">
+      <table class="breakdown">
+        <thead><tr><th>Concepto</th><th class="r">Cantidad</th><th class="r">C. Unitario</th><th class="r">Total</th></tr></thead>
+        <tbody id="breakdownBody"></tbody>
+      </table>
+      <div class="total-block">
+        <span class="lbl">Costo de esta vela</span>
+        <span class="amt num"><span class="c">$</span><span id="o_costo_candle">0.00</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · Precio de esta vela -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">09</span><h2>Precio de esta vela</h2><span class="hint">margen y PVP</span></div>
+    <div class="body">
+      <div class="grid2">
+        <label class="field" style="margin:0"><span>Margen deseado <span class="unit">(%)</span></span>
+          <input id="f_margen" type="number" min="0" step="1" inputmode="decimal" placeholder="80" />
+        </label>
+        <label class="field" style="margin:0"><span>PVP unitario <span class="unit">($)</span></span>
+          <input id="f_pvp" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+        </label>
+      </div>
+      <div class="smallnote" style="margin:8px 0 10px">El margen se aplica al costo de esta vela. Edita cualquiera: margen → PVP, o PVP → margen.</div>
+      <div class="pills" id="marginPresets"></div>
+
+      <div class="spec" id="velaResumen" style="grid-template-columns:1fr;margin-top:12px"></div>
+
+      <div class="grid2" style="margin-top:12px;align-items:end">
+        <label class="field" style="margin:0"><span>Descripción de la vela</span>
+          <input id="f_vela_nombre" type="text" placeholder="Ej. Vela 200 ml lavanda" />
+        </label>
+        <label class="field" style="margin:0"><span>Cantidad</span>
+          <input id="f_vela_qty" type="number" min="1" step="1" inputmode="numeric" value="1" />
+        </label>
+      </div>
+      <button class="btn block gold no-print" id="addItem" style="margin-top:12px">✓ Aprobar y agregar a la cotización</button>
+      <div class="smallnote" id="editingNote" style="text-align:center;margin-top:6px"></div>
+    </div>
+  </section>
+
+  <!-- 10 · Velas agregadas a la cotización -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">10</span><h2>Velas agregadas a la cotización</h2><span class="hint" id="itemsCount"></span></div>
+    <div class="body">
+      <div id="itemsEmpty" class="hist-empty">Aún no agregas velas. Arma una arriba y toca “Aprobar y agregar a la cotización”.</div>
+      <div id="itemsTableWrap" style="overflow-x:auto;display:none">
+        <table class="breakdown" style="min-width:680px">
+          <thead><tr>
+            <th>#</th><th>Descripción</th><th class="r">Capacidad</th><th class="r">Cera</th><th class="r">Esencia</th>
+            <th>Mechas</th><th>Materiales</th><th class="r">Costo total</th><th class="r">PVP</th><th class="r">Margen</th><th>Acciones</th>
+          </tr></thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+      <div class="spec" id="cotiTotals" style="grid-template-columns:1fr;margin-top:16px;display:none"></div>
+      <div class="meter" style="margin-top:12px"><i id="meterFill"></i></div>
+      <div class="verdict"><span class="dot" id="verdictDot"></span><span id="verdictText">Agrega velas para ver la rentabilidad</span></div>
+      <div class="smallnote" id="marginNote"></div>
+    </div>
+  </section>
+
+  <!-- 11 · Resumen producción -->
+  <section class="card">
+    <div class="sec-head"><span class="idx">11</span><h2>Resumen de producción</h2><span class="hint">ficha rápida</span></div>
+    <div class="body">
+      <div class="spec" id="prodSpec"></div>
+    </div>
+  </section>
+
+  <!-- 13 · Historial -->
+  <section class="card collapsible" id="sec-historial">
+    <div class="sec-head"><span class="idx">12</span><h2>Historial de cotizaciones</h2><span class="hint" id="histCount"></span></div>
+    <div class="body">
+      <button class="btn block primary no-print" id="saveQuote" style="margin-bottom:14px">＋ Guardar esta cotización</button>
+      <div id="histList"></div>
+    </div>
+  </section>
+
+  <!-- 13 · Exportación -->
+  <section class="card no-print">
+    <div class="sec-head"><span class="idx">13</span><h2>Exportar</h2></div>
+    <div class="body">
+      <div class="actions">
+        <button class="btn primary" id="exportPdf">⤓ PDF</button>
+        <button class="btn" id="exportXlsx">⤓ Excel</button>
+        <button class="btn" id="printQuote">🖨 Imprimir</button>
+      </div>
+      <div class="smallnote" style="text-align:center;margin-top:10px">El Excel incluye el desglose y el historial completo.</div>
+    </div>
+  </section>
+</main>
+
+<!-- Barra fija -->
+<div class="stickybar">
+  <div class="inner">
+    <div class="sb-item cost"><span class="k">Costo</span><span class="v num">$<span id="sb_costo">0.00</span></span></div>
+    <div class="sb-item"><span class="k">Total</span><span class="v num">$<span id="sb_pvp">0.00</span></span></div>
+    <div class="sb-verdict"><span class="dot" id="sb_dot"></span><span class="num"><span id="sb_margen">0</span>%</span></div>
+  </div>
+</div>
+
+<!-- Modal de costos -->
+<div class="modal-bg" id="cfgModal">
+  <div class="modal">
+    <div class="mhead"><h2>Costos base</h2><button class="hbtn" id="closeCfg">Listo</button></div>
+    <div class="mbody">
+      <div class="importbox">
+        <b style="font-size:13px;color:var(--gold-deep)">Fuente de datos</b>
+        <div class="smallnote" style="margin-top:4px;margin-bottom:10px">Edita abajo a mano, o carga tus costos:</div>
+        <div class="actions" style="grid-template-columns:1fr 1fr">
+          <label class="btn" style="cursor:pointer">⤒ Importar Excel<input id="xlsImport" type="file" accept=".xlsx,.xls,.csv" style="display:none"></label>
+          <button class="btn" id="dlTemplate">⤓ Plantilla Excel</button>
+        </div>
+        <label class="field" style="margin-top:12px"><span>Google Sheets (URL del CSV publicado)</span>
+          <input id="gsUrl" type="text" placeholder="https://docs.google.com/.../pub?output=csv" />
+        </label>
+        <button class="btn block" id="gsLoad">Cargar desde Google Sheets</button>
+        <div class="smallnote" id="gsNote">Publica tu hoja en <i>Archivo → Compartir → Publicar en la web</i> como CSV. Formato esperado: dos columnas <b>Concepto | Valor</b>.</div>
+
+        <div style="border-top:1px dashed #d8c79f;margin:14px 0 12px"></div>
+        <b style="font-size:13px;color:var(--gold-deep)">Hoja compartida (cotizaciones)</b>
+        <div class="smallnote" style="margin-top:4px;margin-bottom:8px">Pega la URL del conector (Web App) que termina en <b>/exec</b>. Las cotizaciones aprobadas se guardan ahí y tú y tu socia ven lo mismo.</div>
+        <label class="field"><span>Conector · Google Sheets Web App</span>
+          <input id="gasUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec" />
+        </label>
+        <button class="btn block" id="gasSync">Conectar y sincronizar</button>
+        <div class="smallnote" id="gasNote"></div>
+      </div>
+
+      <div class="cfg-group">
+        <h3>Parámetros de fórmula</h3>
+        <div class="grid3">
+          <label class="field"><span>Densidad mezcla (g/ml)</span><input id="c_densidad" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field"><span>Densidad esencia (g/ml)</span><input id="c_dens_esencia" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field"><span>% esencia</span><input id="c_pct" type="number" step="0.1" inputmode="decimal"></label>
+        </div>
+        <label class="field"><span>Margen objetivo por defecto (%)</span><input id="c_margen_default" type="number" step="1" inputmode="decimal"></label>
+      </div>
+
+      <div class="cfg-group">
+        <h3>Cera</h3>
+        <label class="field"><span>Costo por gramo ($/g)</span><input id="c_cera" type="number" step="0.0001" inputmode="decimal"></label>
+      </div>
+
+      <div class="cfg-group">
+        <h3>Esencias (tamaño y costo de la presentación)</h3>
+        <div id="esenciaCfg"></div>
+        <button class="btn" id="addEsencia" style="margin-top:4px">＋ Agregar presentación</button>
+        <div class="smallnote">Pon el tamaño en ml y el costo del frasco. El costo por gramo se calcula: costo ÷ (ml × densidad esencia).</div>
+      </div>
+
+      <div class="cfg-group">
+        <h3>Mechas (costo unitario)</h3>
+        <div class="grid2">
+          <label class="field"><span>Mecha 6 ($)</span><input id="c_mecha6" type="number" step="0.0001" inputmode="decimal"></label>
+          <label class="field"><span>Mecha 10 ($)</span><input id="c_mecha10" type="number" step="0.0001" inputmode="decimal"></label>
+        </div>
+      </div>
+
+      <div class="cfg-group">
+        <h3>Materiales</h3>
+        <div class="grid2">
+          <label class="field"><span>Caja ($)</span><input id="c_caja" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field"><span>Etiqueta ($)</span><input id="c_etiqueta" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field"><span>Funda ($)</span><input id="c_funda" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field"><span>Cinta doble faz · unidad ($)</span><input id="c_cinta" type="number" step="0.0001" inputmode="decimal"></label>
+        </div>
+      </div>
+
+      <div class="cfg-group">
+        <h3>Envases</h3>
+        <div id="envaseCfg"></div>
+        <button class="btn" id="addEnvase" style="margin-top:4px">＋ Agregar envase</button>
+        <div class="smallnote">Útil para registrar 200/150/100 ml u otros que agregues en el futuro.</div>
+      </div>
+
+      <button class="btn block primary" id="resetCfg" style="margin-top:6px;background:#fff;color:var(--low);border-color:#eecfcb">Restablecer valores de ejemplo</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   ALMACENAMIENTO (window.storage con fallback en memoria)
+   ============================================================ */
+const Store = {
+  mem:{},
+  async get(k){
+    // 1) almacenamiento del visor (vista previa)  2) localStorage (GitHub/web)  3) memoria
+    try{ if(window.storage){ const r = await window.storage.get(k); if(r) return JSON.parse(r.value); } }catch(e){}
+    try{ const v = localStorage.getItem(k); if(v!==null) return JSON.parse(v); }catch(e){}
+    return (k in this.mem) ? this.mem[k] : null;
+  },
+  async set(k,v){
+    const s = JSON.stringify(v);
+    try{ if(window.storage){ await window.storage.set(k, s); } }catch(e){}
+    try{ localStorage.setItem(k, s); }catch(e){}
+    this.mem[k]=v;
+  }
+};
+
+/* ============================================================
+   CONFIG POR DEFECTO (valores de EJEMPLO, editables)
+   ============================================================ */
+const DEFAULT_CFG = {
+  densidad: 0.90,        // mezcla g/ml
+  densEsencia: 0.90,     // esencia g/ml (por defecto igual; ajustable)
+  pctEsencia: 8,         // %
+  margenDefault: 80,     // % margen objetivo por defecto
+  cera: 0.0120,          // $/g  (ejemplo)
+  esencias: [             // presentaciones de esencia (ml + costo del frasco)
+    {ml:120, cost:9.00},
+    {ml:225, cost:28.06}
+  ],
+  mecha6: 0.15,          // $ (ejemplo)
+  mecha10: 0.22,         // $ (ejemplo)
+  caja: 1.20,            // $ (ejemplo)
+  etiqueta: 0.18,        // $ (ejemplo)
+  funda: 0.10,           // $ (ejemplo)
+  cinta: 0.05,           // $ por unidad (ejemplo)
+  envases: [             // ejemplos
+    {name:"Envase 200 ml", cost:1.80},
+    {name:"Envase 150 ml", cost:1.50},
+    {name:"Envase 100 ml", cost:1.20}
+  ]
+};
+let CFG = JSON.parse(JSON.stringify(DEFAULT_CFG));
+
+/* ESTADO de la cotización actual */
+const state = {
+  esencia: 0,              // índice en CFG.esencias
+  nMechas: 1,
+  mechas: [{tipo:"6", nombre:"", costo:0}],
+  mat: { caja:false, etiqueta:false, funda:false, envase:false, otros:false },
+  envaseSel: 0,            // índice de CFG.envases o "manual"
+  envaseManualNombre: "",
+  envaseManualCosto: 0,
+  otrosNombre: "Otros",
+  otrosCosto: 0,
+  items: []          // velas agregadas a la cotización (carrito)
+};
+let editingItemId = null;  // id de la vela que se está editando, o null
+let HIST = [];
+let PRICE_ANCHOR = "margen"; // "margen" o "pvp": cuál fue el último editado
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const money = (n, d=2) => (isFinite(n)?n:0).toLocaleString("es-EC",{minimumFractionDigits:d, maximumFractionDigits:d});
+const num = v => { const n = parseFloat(v); return isFinite(n)?n:0; };
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2200); }
+
+/* ============================================================
+   CÁLCULO CENTRAL  ·  fuente única de verdad matemática
+   ============================================================ */
+function compute(){
+  const ml = num($("#f_ml").value);
+  const d = CFG.densidad || 0;
+  const pct = (CFG.pctEsencia || 0)/100;
+
+  // --- Mezcla, esencia y cera ---
+  const pesoTotal = ml * d;             // g
+  const esenciaG  = pesoTotal * pct;    // g
+  const ceraG     = pesoTotal - esenciaG; // g
+
+  // --- Costo cera ---
+  const ceraUnit = CFG.cera;            // $/g
+  const ceraCost = ceraG * ceraUnit;
+
+  // --- Costo esencia ---
+  // $/g = costo presentación ÷ (ml presentación × densidad esencia)
+  const presObj = CFG.esencias[state.esencia] || CFG.esencias[0] || {ml:0, cost:0};
+  const presMl = presObj.ml;
+  const presCost = presObj.cost;
+  const esenciaUnit = (presMl * (CFG.densEsencia||0)) > 0 ? presCost / (presMl * CFG.densEsencia) : 0; // $/g
+  const esenciaCost = esenciaG * esenciaUnit;
+
+  // --- Mechas ---
+  let mechasCost = 0;
+  state.mechas.forEach(m=>{
+    let c = 0;
+    if(m.tipo==="6") c = CFG.mecha6;
+    else if(m.tipo==="10") c = CFG.mecha10;
+    else c = num(m.costo);
+    mechasCost += c;
+  });
+  const nMechas = state.mechas.length;
+
+  // --- Cinta (depende de nº de mechas) ---
+  const cintaUnit = CFG.cinta;
+  const cintaCost = nMechas * cintaUnit;
+
+  // --- Materiales ---
+  const cajaCost     = state.mat.caja     ? CFG.caja     : 0;
+  const etiquetaCost = state.mat.etiqueta ? CFG.etiqueta : 0;
+  const fundaCost    = state.mat.funda    ? CFG.funda    : 0;
+  const envObj = (state.envaseSel === "manual")
+    ? {name: state.envaseManualNombre || "Envase (manual)", cost: num(state.envaseManualCosto)}
+    : (CFG.envases[state.envaseSel] || {name:"Envase", cost:0});
+  const envaseCost   = state.mat.envase   ? num(envObj.cost) : 0;
+  const otrosCost    = state.mat.otros    ? num(state.otrosCosto) : 0;
+
+  // --- Mano de obra ---
+  const moCost = num($("#f_mo").value);
+
+  // --- Costo de producción de ESTA vela (materiales + mano de obra) ---
+  const costoTotal = ceraCost + esenciaCost + mechasCost + cintaCost +
+                     cajaCost + etiquetaCost + fundaCost + envaseCost + moCost + otrosCost;
+
+  // --- Cantidad de esta vela ---
+  const curQty = Math.max(1, parseInt($("#f_vela_qty").value) || 1);
+
+  // --- Precio de ESTA vela: margen ↔ PVP unitario (vinculados) ---
+  const costoUnit = costoTotal;                 // costo de una vela
+  let margen, pvpUnit;
+  if(PRICE_ANCHOR === "pvp"){
+    pvpUnit = num($("#f_pvp").value);
+    margen = costoUnit>0 ? (pvpUnit - costoUnit)/costoUnit : 0;
+  }else{ // ancla por margen (por defecto)
+    margen = num($("#f_margen").value)/100;
+    pvpUnit = costoUnit * (1 + margen);
+  }
+  const utilidadUnit = pvpUnit - costoUnit;
+  const mult = costoUnit>0 ? pvpUnit/costoUnit : 0;
+
+  return {
+    ml, pesoTotal, esenciaG, ceraG,
+    ceraUnit, ceraCost,
+    esenciaUnit, esenciaCost, presMl,
+    nMechas, mechasCost,
+    cintaUnit, cintaCost,
+    cajaCost, etiquetaCost, fundaCost, envaseCost, envObj, otrosCost,
+    moCost, costoTotal, costoUnit, curQty,
+    margen, pvpUnit, utilidadUnit, mult
+  };
+}
+
+// Totales de la cotización (suma de todos los ítems aprobados)
+function computeTotals(){
+  let prod=0, pvp=0;
+  state.items.forEach(it=>{ prod += it.qty*it.costoUnit; pvp += it.qty*it.pvpUnit; });
+  const ganancia = pvp - prod;
+  const margenPond = prod>0 ? ganancia/prod : 0;     // margen promedio ponderado por costo
+  const mov = num($("#f_mov").value);
+  const totalFinal = pvp + mov;
+  return {prod, pvp, ganancia, margenPond, mov, totalFinal, n:state.items.length};
+}
+
+/* ============================================================
+   RENDER de resultados
+   ============================================================ */
+function recalc(){
+  const r = compute();
+
+  // Refill
+  $("#o_peso").textContent     = money(r.pesoTotal,1);
+  $("#o_esencia_g").textContent= money(r.esenciaG,1);
+  $("#o_cera_g").textContent   = money(r.ceraG,1);
+
+  // Cinta detalle
+  $("#cintaDetail").textContent = `${r.nMechas} mecha(s) × $${money(r.cintaUnit,4)}`;
+  $("#cintaTotal").textContent  = `$${money(r.cintaCost)}`;
+
+  // Tabla desglose
+  const rows = [
+    ["Cera",        `${money(r.ceraG,1)} g`,    `$${money(r.ceraUnit,4)}/g`, r.ceraCost],
+    [`Esencia ${r.presMl} ml`, `${money(r.esenciaG,1)} g`, `$${money(r.esenciaUnit,4)}/g`, r.esenciaCost],
+    ["Mechas",      `${r.nMechas} u`,           r.nMechas? `$${money(r.mechasCost/r.nMechas,4)}` : "—", r.mechasCost],
+    ["Cinta doble faz", `${r.nMechas} u`,       `$${money(r.cintaUnit,4)}`, r.cintaCost],
+    ["Caja",        state.mat.caja?"1 u":"—",   state.mat.caja?`$${money(CFG.caja)}`:"—", r.cajaCost],
+    ["Etiqueta",    state.mat.etiqueta?"1 u":"—",state.mat.etiqueta?`$${money(CFG.etiqueta)}`:"—", r.etiquetaCost],
+    ["Funda",       state.mat.funda?"1 u":"—",  state.mat.funda?`$${money(CFG.funda)}`:"—", r.fundaCost],
+    [state.mat.envase? r.envObj.name : "Envase", state.mat.envase?"1 u":"—", state.mat.envase?`$${money(r.envObj.cost)}`:"—", r.envaseCost],
+    ["Mano de obra", r.moCost>0?"1":"—",         r.moCost>0?`$${money(r.moCost)}`:"—", r.moCost],
+    [state.mat.otros? state.otrosNombre : "Otros", state.mat.otros?"1":"—", state.mat.otros?`$${money(r.otrosCost)}`:"—", r.otrosCost],
+  ];
+  $("#breakdownBody").innerHTML = rows.map(([c,q,u,t])=>{
+    const zero = (t<=0) ? " class='zero'" : "";
+    return `<tr${zero}><td class="concept">${c}</td><td class="r num">${q}</td><td class="r num">${u}</td><td class="r num">$${money(t)}</td></tr>`;
+  }).join("");
+
+  $("#o_costo_candle").textContent = money(r.costoTotal);
+
+  // Campo vinculado (margen ↔ PVP) de ESTA vela
+  if(PRICE_ANCHOR === "pvp"){ $("#f_margen").value = (r.costoUnit>0 ? +(r.margen*100).toFixed(1) : ""); }
+  else { $("#f_pvp").value = (r.costoUnit>0 ? +r.pvpUnit.toFixed(2) : ""); }
+
+  // Resumen de precio de ESTA vela
+  $("#velaResumen").innerHTML = [
+    ["Costo de esta vela", `$${money(r.costoUnit)}`],
+    ["Margen aplicado", `${money(r.margen*100,1)} %`],
+    ["PVP unitario", `$${money(r.pvpUnit)}`, true],
+    ["Utilidad por vela", `$${money(r.utilidadUnit)}`],
+  ].map(([k,v,strong])=>`<div class="row"><span class="k">${k}</span><span class="v num" ${strong?'style="color:var(--gold-deep)"':''}>${v}</span></div>`).join("");
+
+  // Tabla de velas agregadas + totales de la cotización
+  renderItemsTable();
+
+  // Indicador de rentabilidad: margen promedio ponderado de la cotización
+  const t=computeTotals();
+  const mp = t.margenPond*100;
+  let color = "var(--low)", verdict="Margen bajo", emoji="🔴";
+  if(mp >= 70){ color="var(--ok)"; verdict="Margen saludable"; emoji="🟢"; }
+  else if(mp >= 40){ color="var(--mid)"; verdict="Margen aceptable"; emoji="🟡"; }
+  const hayItems = t.n>0 && t.prod>0;
+  $("#meterFill").style.width = (hayItems?Math.min(100,Math.max(0,mp)):0)+"%";
+  $("#meterFill").style.background = color;
+  $("#verdictDot").style.background = hayItems?color:"var(--hair)";
+  if(hayItems){
+    $("#verdictText").textContent = `${emoji} ${verdict} · margen ponderado ${money(mp,1)}%`;
+    $("#marginNote").textContent = `Ganancia total: $${money(t.ganancia)} · Total a pagar: $${money(t.totalFinal)}.`;
+  }else{
+    $("#verdictText").textContent = "Agrega velas para ver la rentabilidad";
+    $("#marginNote").textContent = "";
+  }
+
+  // Resumen producción (vela en edición)
+  const matsOn = Object.entries(state.mat).filter(([k,v])=>v).map(([k])=>{
+    if(k==="envase") return r.envObj.name;
+    if(k==="otros")  return state.otrosNombre;
+    return k.charAt(0).toUpperCase()+k.slice(1);
+  });
+  const tiposMecha = state.mechas.map(m=> m.tipo==="otra" ? (m.nombre||"Otra") : `Mecha ${m.tipo}`);
+  $("#prodSpec").innerHTML = [
+    ["Capacidad del envase", `${money(r.ml,0)} ml`],
+    ["Peso total mezcla", `${money(r.pesoTotal,1)} g`],
+    ["Cera requerida", `${money(r.ceraG,1)} g`],
+    ["Esencia requerida", `${money(r.esenciaG,1)} g`],
+    ["Esencia (presentación)", `${r.presMl} ml`],
+    ["Número de mechas", `${r.nMechas}`],
+    ["Tipo de mechas", tiposMecha.join(", ")||"—"],
+    ["Materiales", matsOn.join(", ")||"—"],
+  ].map(([k,v])=>`<div class="row"><span class="k">${k}</span><span class="v num">${v}</span></div>`).join("");
+
+  // Barra fija (totales de la cotización)
+  $("#sb_costo").textContent  = money(t.prod);
+  $("#sb_pvp").textContent    = money(t.totalFinal);
+  $("#sb_margen").textContent = money(mp,0);
+  $("#sb_dot").style.background = hayItems?color:"var(--hair)";
+
+  return r;
+}
+
+/* ============================================================
+   CONSTRUCCIÓN de controles dinámicos
+   ============================================================ */
+function renderMarginPresets(){
+  const presets=[40,60,80,100,120];
+  $("#marginPresets").innerHTML = presets.map(p=>
+    `<div class="pill" data-mp="${p}" style="min-width:auto;flex:1;justify-content:center;font-size:13px;font-weight:700">${p}%</div>`).join("");
+  document.querySelectorAll("[data-mp]").forEach(el=>el.onclick=()=>{
+    $("#f_margen").value=el.dataset.mp; PRICE_ANCHOR="margen"; recalc();
+  });
+}
+/* ============================================================
+   CARRITO DE VELAS (cotizar varias velas en una cotización)
+   ============================================================ */
+function esenciaIndex(val){
+  if(val==null) return 0;
+  const n=+val;
+  if(Number.isInteger(n) && n>=0 && n<50 && n<CFG.esencias.length) return n; // índice nuevo
+  let best=0, diff=Infinity; // valor viejo en ml → presentación más cercana
+  CFG.esencias.forEach((e,i)=>{ const d=Math.abs((e.ml||0)-n); if(d<diff){diff=d;best=i;} });
+  return best;
+}
+function candleSnapshot(){
+  return {
+    ml: num($("#f_ml").value), esencia: state.esencia,
+    mechas: JSON.parse(JSON.stringify(state.mechas)), mat: {...state.mat},
+    envaseSel: state.envaseSel, envaseManualNombre: state.envaseManualNombre, envaseManualCosto: state.envaseManualCosto,
+    otrosNombre: state.otrosNombre, otrosCosto: state.otrosCosto, mo: num($("#f_mo").value)
+  };
+}
+function applyCandleSnapshot(s){
+  if(!s) return;
+  $("#f_ml").value = s.ml||""; $("#f_mo").value = s.mo||"";
+  state.esencia = esenciaIndex(s.esencia);
+  state.mechas = JSON.parse(JSON.stringify(s.mechas || [{tipo:"6",nombre:"",costo:0}]));
+  state.mat = {...(s.mat||{})};
+  state.envaseSel = (s.envaseSel===undefined?0:s.envaseSel);
+  state.envaseManualNombre = s.envaseManualNombre||""; state.envaseManualCosto = s.envaseManualCosto||0;
+  state.otrosNombre = s.otrosNombre||"Otros"; state.otrosCosto = s.otrosCosto||0;
+  renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials();
+}
+function approveAndAdd(){
+  const r=compute();
+  if(r.costoTotal<=0){ toast("Arma una vela con costo antes de aprobar"); return; }
+  const qty = Math.max(1, parseInt($("#f_vela_qty").value)||1);
+  const nombre = $("#f_vela_nombre").value.trim() || `Vela ${state.items.length+1}`;
+  const matsOn = Object.entries(state.mat).filter(([k,v])=>v).map(([k])=>{
+    if(k==="envase") return r.envObj.name;
+    if(k==="otros")  return state.otrosNombre;
+    return k.charAt(0).toUpperCase()+k.slice(1);
+  });
+  const tiposMecha = state.mechas.map(m=> m.tipo==="otra" ? (m.nombre||"Otra") : `M${m.tipo}`);
+  const item = {
+    id: editingItemId || Date.now(),
+    nombre, qty,
+    capacidad: r.ml, ceraG:+r.ceraG.toFixed(1), esenciaG:+r.esenciaG.toFixed(1),
+    esenciaLabel:`${r.presMl} ml`, mechasDesc: tiposMecha.join("+")||"—",
+    materialesDesc: matsOn.join(", ")||"—",
+    costoUnit:+r.costoTotal.toFixed(4), margen:r.margen, pvpUnit:+r.pvpUnit.toFixed(4),
+    snapshot: candleSnapshot(),
+    pricing:{ anchor:PRICE_ANCHOR, margenPct:$("#f_margen").value, pvp:$("#f_pvp").value }
+  };
+  if(editingItemId){
+    const idx=state.items.findIndex(i=>i.id===editingItemId);
+    if(idx>=0) state.items[idx]=item;
+    toast("Vela actualizada");
+  }else{
+    state.items.push(item);
+    toast("Vela agregada a la cotización");
+  }
+  resetCandleForm();
+  recalc();
+}
+function resetCandleForm(){
+  $("#f_ml").value=""; $("#f_mo").value="";
+  state.esencia=0;
+  state.mechas=[{tipo:"6",nombre:"",costo:0}];
+  state.mat={caja:false,etiqueta:false,funda:false,envase:false,otros:false};
+  state.envaseSel=0; state.envaseManualNombre=""; state.envaseManualCosto=0;
+  state.otrosNombre="Otros"; state.otrosCosto=0;
+  $("#f_vela_nombre").value=""; $("#f_vela_qty").value=1;
+  $("#f_margen").value=CFG.margenDefault||80; $("#f_pvp").value=""; PRICE_ANCHOR="margen";
+  editingItemId=null;
+  $("#addItem").textContent="✓ Aprobar y agregar a la cotización"; $("#editingNote").textContent="";
+  renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials();
+}
+function editItem(id){
+  const it=state.items.find(i=>i.id===id); if(!it)return;
+  applyCandleSnapshot(it.snapshot);
+  $("#f_vela_nombre").value=it.nombre; $("#f_vela_qty").value=it.qty;
+  PRICE_ANCHOR = it.pricing ? it.pricing.anchor : "margen";
+  $("#f_margen").value = it.pricing ? it.pricing.margenPct : (CFG.margenDefault||80);
+  $("#f_pvp").value = it.pricing ? it.pricing.pvp : "";
+  editingItemId=id;
+  $("#addItem").textContent="✓ Guardar cambios de la vela";
+  $("#editingNote").textContent=`Editando “${it.nombre}”. Toca el botón para guardar.`;
+  recalc(); window.scrollTo({top:0,behavior:"smooth"});
+}
+function duplicateItem(id){
+  const it=state.items.find(i=>i.id===id); if(!it)return;
+  const copy=JSON.parse(JSON.stringify(it)); copy.id=Date.now(); copy.nombre=`${it.nombre} (copia)`;
+  const idx=state.items.findIndex(i=>i.id===id);
+  state.items.splice(idx+1,0,copy);
+  recalc(); toast("Vela duplicada");
+}
+function removeItem(id){
+  state.items=state.items.filter(i=>i.id!==id);
+  if(editingItemId===id) resetCandleForm();
+  recalc();
+}
+function renderItemsTable(){
+  const empty=$("#itemsEmpty"), wrap=$("#itemsTableWrap"), totals=$("#cotiTotals");
+  $("#itemsCount").textContent = state.items.length ? `${state.items.length} vela(s)` : "";
+  if(!state.items.length){ empty.style.display="block"; wrap.style.display="none"; totals.style.display="none"; return; }
+  empty.style.display="none"; wrap.style.display="block"; totals.style.display="block";
+  $("#itemsBody").innerHTML = state.items.map((it,i)=>`
+    <tr>
+      <td class="num">${i+1}</td>
+      <td class="concept">${it.nombre}${it.qty>1?` <span class="tag">×${it.qty}</span>`:""}</td>
+      <td class="r num">${money(it.capacidad,0)} ml</td>
+      <td class="r num">${money(it.ceraG,1)} g</td>
+      <td class="r num">${money(it.esenciaG,1)} g</td>
+      <td>${it.mechasDesc}</td>
+      <td>${it.materialesDesc}</td>
+      <td class="r num">$${money(it.qty*it.costoUnit)}</td>
+      <td class="r num">$${money(it.qty*it.pvpUnit)}</td>
+      <td class="r num">${money(it.margen*100,0)}%</td>
+      <td style="white-space:nowrap">
+        <button class="del" data-edit-item="${it.id}" title="Editar" style="color:var(--gold-deep);font-size:15px">✎</button>
+        <button class="del" data-dup-item="${it.id}" title="Duplicar" style="color:var(--ink);font-size:15px">⧉</button>
+        <button class="del" data-del-item="${it.id}" title="Eliminar">✕</button>
+      </td>
+    </tr>`).join("");
+  document.querySelectorAll("[data-edit-item]").forEach(b=>b.onclick=()=>editItem(+b.dataset.editItem));
+  document.querySelectorAll("[data-dup-item]").forEach(b=>b.onclick=()=>duplicateItem(+b.dataset.dupItem));
+  document.querySelectorAll("[data-del-item]").forEach(b=>b.onclick=()=>removeItem(+b.dataset.delItem));
+
+  const t=computeTotals();
+  $("#cotiTotals").innerHTML = [
+    ["Total costo de producción", `$${money(t.prod)}`],
+    ["Total PVP (productos)", `$${money(t.pvp)}`, true],
+    ["Ganancia total", `$${money(t.ganancia)}`],
+    ["Margen promedio ponderado", `${money(t.margenPond*100,1)} %`],
+    ["+ Movilización (sin margen)", `$${money(t.mov)}`],
+    ["= Total final a pagar", `$${money(t.totalFinal)}`, true],
+  ].map(([k,v,strong])=>`<div class="row"><span class="k">${k}</span><span class="v num" ${strong?'style="color:var(--gold-deep)"':''}>${v}</span></div>`).join("");
+}
+
+function renderEsenciaPills(){
+  $("#esenciaPills").innerHTML = CFG.esencias.map((e,i)=>`
+    <div class="pill ${state.esencia===i?'active':''}" data-es="${i}">
+      <span class="dot"></span>
+      <div>Esencia ${e.ml} ml<small>$${money(e.cost)} por presentación</small></div>
+    </div>`).join("");
+  document.querySelectorAll("#esenciaPills .pill").forEach(p=>{
+    p.onclick=()=>{ state.esencia=+p.dataset.es; renderEsenciaPills(); recalc(); };
+  });
+}
+
+function renderMechaQty(){
+  $("#mechaQty").innerHTML = [1,2,3,4,5].map(n=>`<button class="${state.mechas.length===n?'active':''}" data-n="${n}">${n}</button>`).join("");
+  document.querySelectorAll("#mechaQty button").forEach(b=>{
+    b.onclick=()=>{ setMechaCount(+b.dataset.n); };
+  });
+}
+function setMechaCount(n){
+  const cur = state.mechas;
+  const next = [];
+  for(let i=0;i<n;i++){ next.push(cur[i] || {tipo:"6", nombre:"", costo:0}); }
+  state.mechas = next;
+  renderMechaQty(); renderMechaList(); recalc();
+}
+function renderMechaList(){
+  $("#mechaList").innerHTML = state.mechas.map((m,i)=>`
+    <div class="field" style="margin-bottom:10px;border:1px solid var(--hair);border-radius:11px;padding:11px;background:var(--surface-2)">
+      <span style="margin-bottom:7px">Mecha ${i+1}</span>
+      <div class="pills">
+        <div class="pill ${m.tipo==='6'?'active':''}" data-i="${i}" data-t="6"><span class="dot"></span><div>Mecha 6<small>$${money(CFG.mecha6,4)}</small></div></div>
+        <div class="pill ${m.tipo==='10'?'active':''}" data-i="${i}" data-t="10"><span class="dot"></span><div>Mecha 10<small>$${money(CFG.mecha10,4)}</small></div></div>
+        <div class="pill ${m.tipo==='otra'?'active':''}" data-i="${i}" data-t="otra"><span class="dot"></span><div>Otra<small>costo manual</small></div></div>
+      </div>
+      ${m.tipo==='otra'?`
+      <div class="grid2" style="margin-top:10px">
+        <label class="field" style="margin:0"><span>Nombre</span><input type="text" data-mname="${i}" value="${m.nombre||''}" placeholder="Mecha especial"></label>
+        <label class="field" style="margin:0"><span>Costo unitario ($)</span><input type="number" step="0.0001" inputmode="decimal" data-mcost="${i}" value="${m.costo||''}" placeholder="0.00"></label>
+      </div>`:''}
+    </div>`).join("");
+  document.querySelectorAll("#mechaList .pill").forEach(p=>{
+    p.onclick=()=>{ const i=+p.dataset.i; state.mechas[i].tipo=p.dataset.t; renderMechaList(); recalc(); };
+  });
+  document.querySelectorAll("#mechaList [data-mname]").forEach(inp=>{
+    inp.oninput=()=>{ state.mechas[+inp.dataset.mname].nombre=inp.value; };
+  });
+  document.querySelectorAll("#mechaList [data-mcost]").forEach(inp=>{
+    inp.oninput=()=>{ state.mechas[+inp.dataset.mcost].costo=inp.value; recalc(); };
+  });
+}
+
+function renderMaterials(){
+  const defs = [
+    {key:"caja", label:"Caja", cost:CFG.caja},
+    {key:"etiqueta", label:"Etiqueta", cost:CFG.etiqueta},
+    {key:"funda", label:"Funda", cost:CFG.funda},
+  ];
+  let html = defs.map(d=>`
+    <div class="toggle-row">
+      <div class="tl"><b>${d.label}</b><small>desde costos base</small></div>
+      <div class="right">
+        <span class="mini-cost ${state.mat[d.key]?'':'off'}">$${money(d.cost)}</span>
+        <label class="sw"><input type="checkbox" data-mat="${d.key}" ${state.mat[d.key]?'checked':''}><span class="track"></span></label>
+      </div>
+    </div>`).join("");
+
+  // Envase con selector (incluye opción de precio manual)
+  const envIsManual = state.envaseSel === "manual";
+  const envMiniCost = envIsManual ? num(state.envaseManualCosto) : ((CFG.envases[state.envaseSel]||{}).cost||0);
+  html += `<div class="toggle-row">
+      <div class="tl" style="flex:1">
+        <b>Envase</b>
+        <select data-envsel style="margin-top:6px;max-width:260px;${state.mat.envase?'':'opacity:.5;pointer-events:none'}">
+          ${CFG.envases.map((e,i)=>`<option value="${i}" ${state.envaseSel===i?'selected':''}>${e.name} · $${money(e.cost)}</option>`).join("")}
+          <option value="manual" ${envIsManual?'selected':''}>Otro envase (precio manual)</option>
+        </select>
+        ${envIsManual?`<div class="grid2" style="margin-top:8px;${state.mat.envase?'':'opacity:.5;pointer-events:none'}">
+          <input type="text" data-envmname placeholder="Nombre del envase" value="${state.envaseManualNombre||''}">
+          <input type="number" step="0.01" inputmode="decimal" data-envmcost placeholder="0.00" value="${state.envaseManualCosto||''}">
+        </div>`:''}
+      </div>
+      <div class="right">
+        <span class="mini-cost ${state.mat.envase?'':'off'}">$${money(envMiniCost)}</span>
+        <label class="sw"><input type="checkbox" data-mat="envase" ${state.mat.envase?'checked':''}><span class="track"></span></label>
+      </div>
+    </div>`;
+
+  // Otros
+  html += `<div class="toggle-row">
+      <div class="tl" style="flex:1">
+        <b>Otros materiales</b>
+        <div class="grid2" style="margin-top:6px;${state.mat.otros?'':'opacity:.5;pointer-events:none'}">
+          <input type="text" data-otrosname placeholder="Nombre" value="${state.otrosNombre==='Otros'?'':state.otrosNombre}">
+          <input type="number" step="0.01" inputmode="decimal" data-otroscost placeholder="0.00" value="${state.otrosCosto||''}">
+        </div>
+      </div>
+      <div class="right">
+        <label class="sw"><input type="checkbox" data-mat="otros" ${state.mat.otros?'checked':''}><span class="track"></span></label>
+      </div>
+    </div>`;
+
+  $("#materialsBody").innerHTML = html;
+
+  document.querySelectorAll("[data-mat]").forEach(cb=>{
+    cb.onchange=()=>{ state.mat[cb.dataset.mat]=cb.checked; renderMaterials(); recalc(); };
+  });
+  const envSel = document.querySelector("[data-envsel]");
+  if(envSel) envSel.onchange=()=>{ state.envaseSel = (envSel.value==="manual") ? "manual" : +envSel.value; renderMaterials(); recalc(); };
+  const emn=document.querySelector("[data-envmname]"); if(emn) emn.oninput=()=>{ state.envaseManualNombre=emn.value; recalc(); };
+  const emc=document.querySelector("[data-envmcost]"); if(emc) emc.oninput=()=>{ state.envaseManualCosto=emc.value; recalc(); };
+  const on=document.querySelector("[data-otrosname]");
+  if(on) on.oninput=()=>{ state.otrosNombre=on.value||"Otros"; };
+  const oc=document.querySelector("[data-otroscost]");
+  if(oc) oc.oninput=()=>{ state.otrosCosto=oc.value; recalc(); };
+}
+
+/* ============================================================
+   MODAL CONFIG
+   ============================================================ */
+function fillCfgForm(){
+  $("#c_densidad").value=CFG.densidad;
+  $("#c_dens_esencia").value=CFG.densEsencia;
+  $("#c_pct").value=CFG.pctEsencia;
+  $("#c_margen_default").value=CFG.margenDefault;
+  $("#c_cera").value=CFG.cera;
+  $("#c_mecha6").value=CFG.mecha6;
+  $("#c_mecha10").value=CFG.mecha10;
+  $("#c_caja").value=CFG.caja;
+  $("#c_etiqueta").value=CFG.etiqueta;
+  $("#c_funda").value=CFG.funda;
+  $("#c_cinta").value=CFG.cinta;
+  renderEsenciaCfg();
+  renderEnvaseCfg();
+}
+function renderEsenciaCfg(){
+  $("#esenciaCfg").innerHTML = CFG.esencias.map((e,i)=>`
+    <div class="envase-row">
+      <input class="cost" type="number" step="1" inputmode="numeric" data-esml="${i}" value="${e.ml}" placeholder="ml" style="width:90px">
+      <span style="color:var(--muted);font-size:13px">ml ·</span>
+      <input class="cost" type="number" step="0.01" inputmode="decimal" data-escost="${i}" value="${e.cost}" placeholder="$ costo" style="flex:1">
+      <button data-esdel="${i}" aria-label="Eliminar">✕</button>
+    </div>`).join("");
+  document.querySelectorAll("[data-esml]").forEach(inp=>inp.oninput=()=>{CFG.esencias[+inp.dataset.esml].ml=num(inp.value);});
+  document.querySelectorAll("[data-escost]").forEach(inp=>inp.oninput=()=>{CFG.esencias[+inp.dataset.escost].cost=num(inp.value);});
+  document.querySelectorAll("[data-esdel]").forEach(b=>b.onclick=()=>{ CFG.esencias.splice(+b.dataset.esdel,1); if(state.esencia>=CFG.esencias.length)state.esencia=0; renderEsenciaCfg(); });
+}
+function renderEnvaseCfg(){
+  $("#envaseCfg").innerHTML = CFG.envases.map((e,i)=>`
+    <div class="envase-row">
+      <input class="name" type="text" data-ename="${i}" value="${e.name}" placeholder="Nombre">
+      <input class="cost" type="number" step="0.01" inputmode="decimal" data-ecost="${i}" value="${e.cost}" placeholder="0.00">
+      <button data-edel="${i}" aria-label="Eliminar">✕</button>
+    </div>`).join("");
+  document.querySelectorAll("[data-ename]").forEach(inp=>inp.oninput=()=>{CFG.envases[+inp.dataset.ename].name=inp.value;});
+  document.querySelectorAll("[data-ecost]").forEach(inp=>inp.oninput=()=>{CFG.envases[+inp.dataset.ecost].cost=num(inp.value);});
+  document.querySelectorAll("[data-edel]").forEach(b=>b.onclick=()=>{ CFG.envases.splice(+b.dataset.edel,1); if(state.envaseSel>=CFG.envases.length)state.envaseSel=0; renderEnvaseCfg(); });
+}
+function readCfgForm(){
+  CFG.densidad=num($("#c_densidad").value);
+  CFG.densEsencia=num($("#c_dens_esencia").value);
+  CFG.pctEsencia=num($("#c_pct").value);
+  CFG.margenDefault=num($("#c_margen_default").value);
+  CFG.cera=num($("#c_cera").value);
+  CFG.mecha6=num($("#c_mecha6").value);
+  CFG.mecha10=num($("#c_mecha10").value);
+  CFG.caja=num($("#c_caja").value);
+  CFG.etiqueta=num($("#c_etiqueta").value);
+  CFG.funda=num($("#c_funda").value);
+  CFG.cinta=num($("#c_cinta").value);
+  if(!CFG.esencias || CFG.esencias.length===0){ CFG.esencias=[{ml:120,cost:0}]; }
+  if(CFG.envases.length===0){ CFG.envases.push({name:"Envase", cost:0}); }
+}
+async function saveCfg(){
+  readCfgForm();
+  await Store.set("amaru_cfg", CFG);
+  renderEsenciaPills(); renderMechaList(); renderMaterials(); recalc();
+}
+
+/* ============================================================
+   IMPORTAR / EXPORTAR
+   ============================================================ */
+// Mapa de etiquetas → claves de CFG (normalizadas)
+const LABEL_MAP = [
+  [["cera","cera por gramo","cera $/g"], v=>CFG.cera=v],
+  [["mecha 6","mecha6"], v=>CFG.mecha6=v],
+  [["mecha 10","mecha10"], v=>CFG.mecha10=v],
+  [["caja"], v=>CFG.caja=v],
+  [["etiqueta","etiquetas"], v=>CFG.etiqueta=v],
+  [["funda","fundas"], v=>CFG.funda=v],
+  [["cinta","cinta doble faz","cinta doble fax"], v=>CFG.cinta=v],
+  [["densidad","densidad mezcla"], v=>CFG.densidad=v],
+  [["densidad esencia"], v=>CFG.densEsencia=v],
+  [["porcentaje esencia","% esencia","pct esencia"], v=>CFG.pctEsencia=v],
+];
+function normalize(s){ return (s||"").toString().toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+
+function applyPairs(pairs){
+  let matched=0; const env=[]; const esn=[];
+  pairs.forEach(([rawK, rawV])=>{
+    const k = normalize(rawK);
+    const v = parseFloat((rawV+"").replace(/[^0-9.,-]/g,"").replace(",","."));
+    if(!isFinite(v)) return;
+    if(k.startsWith("envase")){ env.push({name:rawK.toString().trim(), cost:v}); matched++; return; }
+    const mEs = k.match(/esencia\s*(\d+)/);
+    if(mEs){ esn.push({ml:parseInt(mEs[1],10), cost:v}); matched++; return; }
+    for(const [aliases, setter] of LABEL_MAP){
+      if(aliases.some(a=> k===a || k.includes(a))){ setter(v); matched++; break; }
+    }
+  });
+  if(esn.length){ CFG.esencias = esn; if(state.esencia>=esn.length) state.esencia=0; }
+  if(env.length){ CFG.envases = env; if(state.envaseSel>=env.length) state.envaseSel=0; }
+  return matched;
+}
+
+function handleExcel(file){
+  if(!window.XLSX){ toast("Librería Excel no disponible"); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1});
+      const pairs=rows.filter(r=>r&&r.length>=2).map(r=>[r[0],r[1]]);
+      const n=applyPairs(pairs);
+      saveCfg(); fillCfgForm();
+      toast(n? `Importado · ${n} costos actualizados` : "No se reconocieron columnas Concepto/Valor");
+    }catch(err){ toast("No se pudo leer el archivo"); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function loadGoogleSheet(){
+  const url=$("#gsUrl").value.trim();
+  if(!url){ toast("Pega la URL del CSV publicado"); return; }
+  try{
+    const res=await fetch(url);
+    const txt=await res.text();
+    const pairs=txt.split(/\r?\n/).filter(Boolean).map(line=>{
+      const cells=line.split(",");
+      return [cells[0], cells[1]];
+    });
+    const n=applyPairs(pairs);
+    await saveCfg(); fillCfgForm();
+    $("#gsNote").textContent = n? `Cargado · ${n} costos actualizados.` : "No se reconocieron columnas Concepto/Valor.";
+    await Store.set("amaru_gsurl", url);
+    toast(n? `Google Sheets · ${n} costos` : "Sin coincidencias");
+  }catch(err){
+    $("#gsNote").innerHTML = "No se pudo acceder a la hoja (revisa que esté <b>publicada como CSV</b> y sea pública). Si el entorno bloquea la conexión, usa la importación de Excel.";
+    toast("No se pudo conectar");
+  }
+}
+
+function downloadTemplate(){
+  if(!window.XLSX){ toast("Librería Excel no disponible"); return; }
+  const data=[
+    ["Concepto","Valor"],
+    ["Cera",CFG.cera],
+    ...CFG.esencias.map(e=>[`Esencia ${e.ml} ml`, e.cost]),
+    ["Mecha 6",CFG.mecha6],
+    ["Mecha 10",CFG.mecha10],
+    ["Caja",CFG.caja],
+    ["Etiqueta",CFG.etiqueta],
+    ["Funda",CFG.funda],
+    ["Cinta doble faz",CFG.cinta],
+    ["Densidad mezcla",CFG.densidad],
+    ["Densidad esencia",CFG.densEsencia],
+    ["% esencia",CFG.pctEsencia],
+    ...CFG.envases.map(e=>[e.name,e.cost])
+  ];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), "Costos");
+  XLSX.writeFile(wb,"AMARU_plantilla_costos.xlsx");
+}
+
+/* --------- Exportar Excel (cotización + historial) --------- */
+function exportXlsx(){
+  if(!window.XLSX){ toast("Librería Excel no disponible"); return; }
+  if(!state.items.length){ toast("Agrega al menos una vela a la cotización"); return; }
+  const t=computeTotals();
+  const info=[
+    ["AMARÚ · Cotización"],[""],
+    ["Cliente",$("#f_cliente").value],["Proyecto",$("#f_proyecto").value],
+    ["Fecha",$("#f_fecha").value],["Observaciones",$("#f_obs").value],[""],
+    ["VELAS DE LA COTIZACIÓN"],
+    ["Vela","Cantidad","Costo unit.","Costo total","Margen %","PVP unit.","Subtotal venta"],
+    ...state.items.map(it=>[it.nombre, it.qty, +(+it.costoUnit).toFixed(2), +(it.qty*it.costoUnit).toFixed(2),
+                       +(it.margen*100).toFixed(1), +(+it.pvpUnit).toFixed(2), +(it.qty*it.pvpUnit).toFixed(2)]),
+    [""],
+    ["Total costo de producción","","","",+t.prod.toFixed(2)],
+    ["Total PVP (productos)","","","",+t.pvp.toFixed(2)],
+    ["Ganancia total","","","",+t.ganancia.toFixed(2)],
+    ["Margen promedio ponderado %","","","",+(t.margenPond*100).toFixed(1)],
+    ["Movilización (sin margen)","","","",+t.mov.toFixed(2)],
+    ["TOTAL FINAL A PAGAR","","","",+t.totalFinal.toFixed(2)],
+  ];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(info), "Cotización");
+  const h=[["Fecha","Cliente","Proyecto","Producto","Cantidad","Costo unit.","Margen %","PVP unit.","Subtotal productos","Movilización","Total final","Estado"],
+    ...HIST.map(x=>[x.fecha,x.cliente,x.proyecto,(x.producto??""),(x.cantidad??""),(x.costoUnit??""),(x.margen*100).toFixed(1),(x.pvpUnit??""),(x.subtotal??""),(x.movilizacion??""),(x.total??x.pvp??""),x.estado||"Aprobada"])];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(h), "Historial Cotizaciones");
+  const cli=($("#f_cliente").value||"cotizacion").replace(/[^\w]+/g,"_");
+  XLSX.writeFile(wb, `AMARU_${cli}.xlsx`);
+}
+
+/* --------- Exportar PDF (guarda en la hoja ANTES de generar) --------- */
+async function exportPdf(){
+  const J = window.jspdf && window.jspdf.jsPDF;
+  if(!J){ toast("Librería PDF no disponible · usa Imprimir"); return; }
+
+  // 1) Guardar la cotización primero (regla: el PDF no es una acción aislada)
+  const {q, cloud} = await guardarCotizacion();
+  if(!q) return; // sin costo
+  if(GAS_URL && cloud===false){
+    toast("❌ No se pudo guardar en la hoja. Revisa la conexión. No se generó el PDF.");
+    return; // no asumir que quedó registrada
+  }
+  if(!GAS_URL){ toast("⚠ Sin hoja conectada: el PDF se descarga, pero no quedó registrado en Sheets"); }
+
+  // 2) Generar el PDF
+  const r=recalc();
+  const doc=new J({unit:"pt",format:"a4"});
+  const W=doc.internal.pageSize.getWidth();
+  const gold=[184,146,74], ink=[28,24,21], muted=[138,129,117];
+
+  doc.setFont("times","normal");
+  doc.setFontSize(26); doc.setTextColor(...ink);
+  doc.text("AMARÚ", 40, 56);
+  doc.setFontSize(9); doc.setTextColor(...muted);
+  doc.text("COTIZADOR · VELAS ARTESANALES", 40, 70);
+  doc.setDrawColor(...gold); doc.setLineWidth(1); doc.line(40,80,W-40,80);
+
+  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(...ink);
+  const cli=$("#f_cliente").value||"—", pro=$("#f_proyecto").value||"—", fch=$("#f_fecha").value||"—";
+  doc.text(`Cliente: ${cli}`, 40, 100);
+  doc.text(`Proyecto: ${pro}`, 40, 114);
+  doc.text(`Fecha: ${fch}`, W-40, 100, {align:"right"});
+
+  // Cada vela con su propio PVP unitario. La movilización va aparte, sin margen.
+  const t = computeTotals();
+  const body = state.items.map(it=>[
+    it.nombre + (it.qty>1?` (×${it.qty})`:""),
+    `${it.qty}`, `$${money(it.pvpUnit)}`, `$${money(it.qty*it.pvpUnit)}`
+  ]);
+
+  doc.autoTable({
+    startY:128,
+    head:[["Detalle","Cant.","Precio unit.","Subtotal"]],
+    body: body,
+    foot:[
+      ["Subtotal productos","","",`$${money(t.pvp)}`],
+      ["Movilización / envío","","",`$${money(t.mov)}`],
+      ["TOTAL","","",`$${money(t.totalFinal)}`],
+    ],
+    theme:"plain",
+    headStyles:{textColor:muted,fontSize:9,fontStyle:"bold",lineWidth:{bottom:0.5},lineColor:gold},
+    footStyles:{textColor:ink,fontStyle:"bold",fontSize:11,lineWidth:{top:0.5},lineColor:gold},
+    bodyStyles:{textColor:ink,fontSize:10.5},
+    columnStyles:{1:{halign:"right"},2:{halign:"right"},3:{halign:"right"}},
+    margin:{left:40,right:40}
+  });
+
+  let y=doc.lastAutoTable.finalY + 22;
+  if($("#f_obs").value){
+    doc.setFontSize(9); doc.setTextColor(...muted);
+    doc.text(`Observaciones: ${$("#f_obs").value}`, 40, y, {maxWidth:W-80});
+    y += 20;
+  }
+  doc.setFontSize(8); doc.setTextColor(...muted);
+  doc.text("Gracias por confiar en AMARÚ.", 40, y+4);
+
+  const cliF=(cli||"cotizacion").replace(/[^\w]+/g,"_");
+  doc.save(`AMARU_${cliF}.pdf`);
+}
+
+/* ============================================================
+   SINCRONIZACIÓN · hoja compartida (Google Apps Script Web App)
+   ============================================================ */
+let GAS_URL = "";
+function buildDetalle(q){
+  if(!q) return "";
+  if(q.items && q.items.length){
+    return q.items.map(it=>`${it.qty}× ${it.nombre}`).join(", ") + ((+q.movilizacion>0)?` · mov $${(+q.movilizacion).toFixed(2)}`:"");
+  }
+  const s = q.snapshot || {};
+  const mech = (s.mechas||[]).map(m=> m.tipo==="otra"?(m.nombre||"Otra"):`M${m.tipo}`).join("+");
+  const mats = Object.entries(s.mat||{}).filter(([k,v])=>v).map(([k])=>k).join(", ");
+  const mov = (q.movilizacion && +q.movilizacion>0) ? ` · movilización $${(+q.movilizacion).toFixed(2)}` : "";
+  return `${s.ml||0}ml · esencia ${s.esencia}ml · mechas ${mech||"-"} · ${mats||"sin extras"}${mov}`;
+}
+async function cloudPush(q){
+  if(!GAS_URL) return null; // sin conector configurado
+  try{
+    const res = await fetch(GAS_URL,{ method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"}, // texto plano: evita el preflight CORS
+      body:JSON.stringify({
+        id:q.id, fecha:q.fecha, cliente:q.cliente, proyecto:q.proyecto,
+        producto:q.producto, cantidad:q.cantidad,
+        costoUnit:q.costoUnit, margen:+(q.margen*100).toFixed(1), pvpUnit:q.pvpUnit,
+        subtotal:q.subtotal, movilizacion:q.movilizacion, total:q.total,
+        estado:q.estado||"Aprobada", referencia:q.referencia||""
+      }) });
+    try{ const d=await res.json(); return !!(d && d.ok); }
+    catch(e){ return !!res.ok; }   // si la respuesta llegó, la fila se escribió
+  }catch(e){ return false; }       // error de red → no se guardó
+}
+async function cloudDelete(id){
+  if(!GAS_URL) return;
+  try{ await fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",id})}); }catch(e){}
+}
+async function cloudPull(){
+  if(!GAS_URL) return false;
+  try{
+    const res=await fetch(GAS_URL+(GAS_URL.includes("?")?"&":"?")+"action=list");
+    const data=await res.json();
+    if(data && data.ok && Array.isArray(data.rows)){
+      const local={}; HIST.forEach(h=>local[h.id]=h); // conservar snapshots locales
+      HIST=data.rows.filter(r=>r.id).map(r=>({
+        id:r.id, fecha:r.fecha, cliente:r.cliente, proyecto:r.proyecto, estado:r.estado||"Aprobada",
+        producto:r.producto, cantidad:r.cantidad,
+        subtotal:+r.subtotal||0, movilizacion:+r.movilizacion||0,
+        total:+r.total||0, pvp:+r.total||0, margen:(+r.margen||0)/100, ganancia:0,
+        snapshot: local[r.id]?local[r.id].snapshot:null
+      }));
+      await Store.set("amaru_hist", HIST);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+let currentQuoteId = null; // id de la cotización de la sesión (para no duplicar al guardar y al exportar PDF)
+
+function buildQuoteRecord(){
+  const t=computeTotals();
+  const producto = state.items.map(it=>`${it.qty}× ${it.nombre}`).join(", ");
+  const cantidadTotal = state.items.reduce((a,it)=>a+it.qty,0);
+  const unico = state.items.length===1;
+  const costoUnit = unico ? +state.items[0].costoUnit.toFixed(2) : "";
+  const pvpUnit   = unico ? +state.items[0].pvpUnit.toFixed(2) : "";
+  if(!currentQuoteId) currentQuoteId = Date.now();
+  return {
+    id: currentQuoteId,
+    fecha:$("#f_fecha").value || new Date().toISOString().slice(0,10),
+    cliente:$("#f_cliente").value||"—",
+    proyecto:$("#f_proyecto").value||"—",
+    estado:"Aprobada",
+    producto, cantidad:cantidadTotal,
+    costoUnit, pvpUnit,
+    margen: t.margenPond,
+    costoProd:+t.prod.toFixed(2), subtotal:+t.pvp.toFixed(2),
+    movilizacion:+t.mov.toFixed(2), total:+t.totalFinal.toFixed(2), pvp:+t.totalFinal.toFixed(2),
+    ganancia:+t.ganancia.toFixed(2),
+    referencia:`AMARU_${($("#f_cliente").value||"cotizacion").replace(/[^\w]+/g,"_")}.pdf`,
+    items: JSON.parse(JSON.stringify(state.items)),
+    snapshot:{ items: JSON.parse(JSON.stringify(state.items)),
+               mov:num($("#f_mov").value),
+               cliente:$("#f_cliente").value, proyecto:$("#f_proyecto").value,
+               fecha:$("#f_fecha").value, obs:$("#f_obs").value }
+  };
+}
+
+// Guarda local + nube. Devuelve {q, cloud} donde cloud = true/false/null(sin conector)
+async function guardarCotizacion(){
+  if(!state.items.length){ toast("Agrega al menos una vela a la cotización"); return {q:null, cloud:null}; }
+  const q=buildQuoteRecord();
+  // upsert local por id
+  HIST = HIST.filter(x=>String(x.id)!==String(q.id));
+  HIST.unshift(q);
+  await Store.set("amaru_hist", HIST);
+  renderHist();
+  const cloud = await cloudPush(q);
+  return {q, cloud};
+}
+
+/* ============================================================
+   HISTORIAL
+   ============================================================ */
+async function saveQuote(){
+  const {q, cloud} = await guardarCotizacion();
+  if(!q) return;
+  $("#sec-historial").classList.add("open");
+  if(cloud===null) toast("Guardada en este dispositivo (sin hoja conectada)");
+  else if(cloud)   toast("✓ Guardada y sincronizada con la hoja");
+  else             toast("⚠ Guardada local, pero NO se pudo escribir en la hoja");
+}
+function renderHist(){
+  $("#histCount").textContent = HIST.length? `${HIST.length} guardada(s)` : "";
+  if(!HIST.length){ $("#histList").innerHTML='<div class="hist-empty">Aún no has guardado cotizaciones.</div>'; return; }
+  $("#histList").innerHTML=HIST.map(x=>{
+    let c="var(--low)"; if(x.margen*100>=70)c="var(--ok)"; else if(x.margen*100>=40)c="var(--mid)";
+    return `<div class="hist-item" data-load="${x.id}">
+      <div class="meta"><b>${x.cliente} · ${x.proyecto}</b><small>${x.fecha} · ${x.producto||"—"} · ${x.estado||'Aprobada'}</small></div>
+      <div class="nums"><div class="m" style="color:${c}">${money(x.margen*100,0)}%</div><small>Total $${money(x.total!=null?x.total:x.pvp)}</small></div>
+      <button class="del" data-del="${x.id}" aria-label="Eliminar">✕</button>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("[data-load]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-del]"))return; loadQuote(el.dataset.load); });
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{ e.stopPropagation(); const id=b.dataset.del; HIST=HIST.filter(x=>String(x.id)!=String(id)); await Store.set("amaru_hist",HIST); cloudDelete(id); renderHist(); });
+}
+function loadQuote(id){
+  const x=HIST.find(h=>String(h.id)===String(id)); if(!x)return; const s=x.snapshot;
+  if(!s){ toast("Esta cotización viene de la hoja compartida (sin detalle para recargar)"); return; }
+  currentQuoteId = x.id;   // editar esta cotización actualiza su misma fila
+  $("#f_cliente").value=s.cliente||""; $("#f_proyecto").value=s.proyecto||"";
+  $("#f_fecha").value=s.fecha||""; $("#f_obs").value=s.obs||"";
+  $("#f_mov").value=s.mov||"";
+  state.items = Array.isArray(s.items) ? JSON.parse(JSON.stringify(s.items)) : [];
+  resetCandleForm();   // el formulario de vela queda limpio para agregar otra
+  recalc();
+  window.scrollTo({top:0,behavior:"smooth"}); toast("Cotización cargada");
+}
+
+/* ============================================================
+   INICIALIZACIÓN
+   ============================================================ */
+async function init(){
+  const savedCfg=await Store.get("amaru_cfg"); if(savedCfg) CFG={...DEFAULT_CFG,...savedCfg};
+  HIST=(await Store.get("amaru_hist"))||[];
+  const gs=await Store.get("amaru_gsurl"); if(gs) $("#gsUrl").value=gs;
+  const gas=await Store.get("amaru_gas"); if(gas){ GAS_URL=gas; $("#gasUrl").value=gas; }
+
+  $("#f_fecha").value=new Date().toISOString().slice(0,10);
+  $("#f_margen").value = CFG.margenDefault || 80;   // margen objetivo por defecto
+  PRICE_ANCHOR = "margen";
+
+  renderEsenciaPills(); renderMechaQty(); renderMechaList(); renderMaterials(); renderMarginPresets();
+  fillCfgForm(); renderHist(); recalc();
+
+  // listeners de inputs en vivo
+  ["f_ml","f_mo","f_mov","f_vela_qty"].forEach(id=>$("#"+id).addEventListener("input",recalc));
+  $("#f_margen").addEventListener("input",()=>{ PRICE_ANCHOR="margen"; recalc(); });
+  $("#f_pvp").addEventListener("input",()=>{ PRICE_ANCHOR="pvp"; recalc(); });
+  $("#addItem").onclick=approveAndAdd;
+
+  // historial colapsable
+  $("#sec-historial .sec-head").onclick=()=>$("#sec-historial").classList.toggle("open");
+
+  // banner
+  $("#closeBanner").onclick=()=>$("#banner").style.display="none";
+
+  // config modal
+  $("#openCfg").onclick=()=>{ fillCfgForm(); $("#cfgModal").classList.add("open"); };
+  $("#closeCfg").onclick=async()=>{ await saveCfg(); $("#cfgModal").classList.remove("open"); toast("Costos guardados"); };
+  $("#cfgModal").onclick=e=>{ if(e.target.id==="cfgModal"){ $("#closeCfg").click(); } };
+  ["c_densidad","c_dens_esencia","c_pct","c_margen_default","c_cera","c_mecha6","c_mecha10","c_caja","c_etiqueta","c_funda","c_cinta"]
+    .forEach(id=>$("#"+id).addEventListener("input",()=>{ readCfgForm(); renderEsenciaPills(); renderMechaList(); renderMaterials(); recalc(); }));
+  $("#addEnvase").onclick=()=>{ CFG.envases.push({name:"Nuevo envase", cost:0}); renderEnvaseCfg(); };
+  $("#addEsencia").onclick=()=>{ CFG.esencias.push({ml:0, cost:0}); renderEsenciaCfg(); };
+  $("#resetCfg").onclick=async()=>{ CFG=JSON.parse(JSON.stringify(DEFAULT_CFG)); await Store.set("amaru_cfg",CFG); fillCfgForm(); renderEsenciaPills(); renderMechaList(); renderMaterials(); recalc(); toast("Valores restablecidos"); };
+
+  // import/export
+  $("#xlsImport").onchange=e=>{ if(e.target.files[0]) handleExcel(e.target.files[0]); e.target.value=""; };
+  $("#dlTemplate").onclick=downloadTemplate;
+  $("#gsLoad").onclick=loadGoogleSheet;
+  $("#gasSync").onclick=async()=>{
+    const u=$("#gasUrl").value.trim();
+    if(!/\/exec$/.test(u)){ $("#gasNote").innerHTML="La URL debe terminar en <b>/exec</b>."; return; }
+    GAS_URL=u; await Store.set("amaru_gas", u);
+    $("#gasNote").textContent="Conectando…";
+    const ok=await cloudPull(); renderHist();
+    $("#gasNote").innerHTML = ok
+      ? "✓ Conectado. Las cotizaciones se sincronizan con la hoja compartida."
+      : "No se pudo leer la hoja. Revisa: implementación como <b>Aplicación web</b>, acceso <b>Cualquier persona</b>, y que la URL termine en <b>/exec</b>.";
+  };
+  $("#exportPdf").onclick=exportPdf;
+  $("#exportXlsx").onclick=exportXlsx;
+  $("#printQuote").onclick=()=>window.print();
+
+  // guardar
+  $("#saveQuote").onclick=saveQuote;
+
+  // sincronizar al iniciar si ya hay conector configurado
+  if(GAS_URL){ const ok=await cloudPull(); if(ok) renderHist(); }
+}
+init();
+</script>
